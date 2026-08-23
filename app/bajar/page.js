@@ -3,13 +3,14 @@ import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { getCurrentMonth, getMonthName, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useMonth } from "@/context/MonthContext";
 
 export default function BajarPage() {
   const { isLoggedIn, openLoginModal } = useAuth();
+  const { selectedMonth, setSelectedMonth } = useMonth();
 
   const [members, setMembers] = useState([]);
   const [entries, setEntries] = useState([]);
-  const [month, setMonth] = useState(getCurrentMonth());
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -24,7 +25,7 @@ export default function BajarPage() {
     try {
       const [membersRes, bajarRes] = await Promise.all([
         fetch("/api/members"),
-        fetch(`/api/bajar?month=${month}`),
+        fetch(`/api/bajar?month=${selectedMonth}`),
       ]);
       const membersData = await membersRes.json();
       const bajarData = await bajarRes.json();
@@ -34,7 +35,7 @@ export default function BajarPage() {
       console.error(err);
     }
     setLoading(false);
-  }, [month]);
+  }, [selectedMonth]);
 
   useEffect(() => {
     fetchData();
@@ -105,13 +106,13 @@ export default function BajarPage() {
             🛒 Bajar List
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {getMonthName(month)} — Market &amp; grocery expense records
+            {getMonthName(selectedMonth)} — Market &amp; grocery expense records
           </p>
         </div>
         <input
           type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
           className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs sm:text-sm"
         />
       </div>

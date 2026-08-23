@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import DeveloperPopup from "@/components/DeveloperPopup";
 import LoginModal from "@/components/LoginModal";
 import { AuthProvider } from "@/context/AuthContext";
+import { MonthProvider } from "@/context/MonthContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,11 +32,13 @@ export default function RootLayout({ children }) {
         className={`${inter.variable} font-sans min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white`}
       >
         <AuthProvider>
-          <Navbar />
-          <main className="flex-1 pb-10">{children}</main>
-          <Footer />
-          <DeveloperPopup />
-          <LoginModal />
+          <MonthProvider>
+            <Navbar />
+            <main className="flex-1 pb-10">{children}</main>
+            <Footer />
+            <DeveloperPopup />
+            <LoginModal />
+          </MonthProvider>
         </AuthProvider>
       </body>
     </html>

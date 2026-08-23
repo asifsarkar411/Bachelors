@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { getCurrentMonth, getMonthName, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useMonth } from "@/context/MonthContext";
 
 const CATEGORIES = [
   { key: "rent", label: "Flat Rent", icon: "🏠" },
@@ -15,10 +16,10 @@ const CATEGORIES = [
 
 export default function FlatExpensesPage() {
   const { isLoggedIn, openLoginModal } = useAuth();
+  const { selectedMonth, setSelectedMonth } = useMonth();
 
   const [expenses, setExpenses] = useState({});
   const [members, setMembers] = useState([]);
-  const [month, setMonth] = useState(getCurrentMonth());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
@@ -27,7 +28,7 @@ export default function FlatExpensesPage() {
     setLoading(true);
     try {
       const [expRes, membersRes] = await Promise.all([
-        fetch(`/api/flat-expenses?month=${month}`),
+        fetch(`/api/flat-expenses?month=${selectedMonth}`),
         fetch("/api/members"),
       ]);
       const expData = await expRes.json();
@@ -48,7 +49,7 @@ export default function FlatExpensesPage() {
       console.error(err);
     }
     setLoading(false);
-  }, [month]);
+  }, [selectedMonth]);
 
   useEffect(() => {
     fetchData();
@@ -74,7 +75,7 @@ export default function FlatExpensesPage() {
         await fetch("/api/flat-expenses", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ month, category, amount }),
+          body: JSON.stringify({ month: selectedMonth, category, amount }),
         });
       }
       setSaveMsg("✅ Flat expenses saved successfully!");
@@ -104,15 +105,15 @@ export default function FlatExpensesPage() {
             🏢 Flat Expenses &amp; Utilities
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {getMonthName(month)} — Totally separate from meal calculations
+            {getMonthName(selectedMonth)} — Totally separate from meal calculations
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <input
             type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
             className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs sm:text-sm flex-1 sm:flex-none"
           />
           <button

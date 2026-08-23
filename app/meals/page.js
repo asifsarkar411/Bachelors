@@ -3,22 +3,23 @@ import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { getCurrentMonth, getMonthName, getDaysInMonth } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useMonth } from "@/context/MonthContext";
 
 export default function MealsPage() {
   const { isLoggedIn, isAdminOrManager, openLoginModal } = useAuth();
+  const { selectedMonth, setSelectedMonth, isCurrentMonth } = useMonth();
 
   const [members, setMembers] = useState([]);
   const [meals, setMeals] = useState({});
-  const [month, setMonth] = useState(getCurrentMonth());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
-  const [year, m] = month.split("-").map(Number);
+  const [year, m] = selectedMonth.split("-").map(Number);
   const daysInMonth = getDaysInMonth(year, m);
   const dates = Array.from({ length: daysInMonth }, (_, i) => {
     const day = String(i + 1).padStart(2, "0");
-    return `${month}-${day}`;
+    return `${selectedMonth}-${day}`;
   });
 
   const fetchData = useCallback(async () => {
@@ -26,7 +27,7 @@ export default function MealsPage() {
     try {
       const [membersRes, mealsRes] = await Promise.all([
         fetch("/api/members"),
-        fetch(`/api/meals?month=${month}`),
+        fetch(`/api/meals?month=${selectedMonth}`),
       ]);
       const membersData = await membersRes.json();
       const mealsData = await mealsRes.json();
@@ -48,7 +49,7 @@ export default function MealsPage() {
       console.error(err);
     }
     setLoading(false);
-  }, [month]);
+  }, [selectedMonth]);
 
   useEffect(() => {
     fetchData();
@@ -141,15 +142,15 @@ export default function MealsPage() {
             🍽️ Meal Count Sheet
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {getMonthName(month)} — Track Day &amp; Night meals per person
+            {getMonthName(selectedMonth)} — Track Day &amp; Night meals per person
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <input
             type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
             className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs sm:text-sm flex-1 sm:flex-none"
           />
 

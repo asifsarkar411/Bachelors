@@ -3,23 +3,24 @@ import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import StatsCard from "@/components/StatsCard";
 import { getCurrentMonth, getMonthName, formatCurrency } from "@/lib/utils";
+import { useMonth } from "@/context/MonthContext";
 
 export default function SummaryPage() {
+  const { selectedMonth, setSelectedMonth } = useMonth();
   const [summary, setSummary] = useState(null);
-  const [month, setMonth] = useState(getCurrentMonth());
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/summary?month=${month}`);
+      const res = await fetch(`/api/summary?month=${selectedMonth}`);
       const data = await res.json();
       setSummary(data);
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
-  }, [month]);
+  }, [selectedMonth]);
 
   useEffect(() => {
     fetchData();
@@ -41,15 +42,15 @@ export default function SummaryPage() {
           <h1 className="text-2xl font-bold gradient-text">
             📊 Meal Summary
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            {getMonthName(month)} — Meal rate & per-person breakdown
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            {getMonthName(selectedMonth)} — Meal rate &amp; per-person breakdown
           </p>
         </div>
         <input
           type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="input input-bordered input-sm bg-base-200 border-slate-700 text-sm"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs sm:text-sm"
         />
       </div>
 

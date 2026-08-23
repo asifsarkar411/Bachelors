@@ -284,7 +284,9 @@ export default function AdminPage() {
                   placeholder="e.g. manager1"
                   value={assignUsername}
                   onChange={(e) => setAssignUsername(e.target.value)}
-                  className="input input-bordered input-sm w-full bg-base-100/60 border-slate-700 text-xs"
+                  className="input input-bordered input-sm w-full bg-base-100/60 border-slate-700 text-xs text-white"
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   required
                 />
               </div>
@@ -299,7 +301,9 @@ export default function AdminPage() {
                   placeholder="e.g. pass123"
                   value={assignPassword}
                   onChange={(e) => setAssignPassword(e.target.value)}
-                  className="input input-bordered input-sm w-full bg-base-100/60 border-slate-700 text-xs"
+                  className="input input-bordered input-sm w-full bg-base-100/60 border-slate-700 text-xs text-white"
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   required
                 />
               </div>

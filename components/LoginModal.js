@@ -39,45 +39,45 @@ export default function LoginModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain animate-fade-in">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/75 backdrop-blur-md"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md"
         onClick={closeLoginModal}
       />
 
-      {/* Modal Card */}
-      <div className="relative glass-card !border-sky-500/30 p-6 sm:p-8 w-full max-w-md animate-scale-in shadow-2xl">
+      {/* Modal Card - Mobile Keyboard Friendly */}
+      <div className="relative glass-card !border-sky-500/30 p-5 sm:p-7 w-full max-w-md my-auto max-h-[90dvh] overflow-y-auto overscroll-contain animate-scale-in shadow-2xl">
         {/* Close Button */}
         <button
           onClick={closeLoginModal}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 transition"
+          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 transition text-sm"
         >
           ✕
         </button>
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-purple-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-sky-500/20">
-            <span className="text-2xl">🔐</span>
+        <div className="text-center mb-5">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-500 to-purple-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-sky-500/20">
+            <span className="text-xl">🔐</span>
           </div>
-          <h2 className="text-xl font-bold text-white">Manager & Admin Login</h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <h2 className="text-lg sm:text-xl font-bold text-white">Manager &amp; Admin Login</h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
             Sign in as Super Admin or Assigned Sub-Manager
           </p>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+          <div className="mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
             <span>⚠️</span> {error}
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="text-xs text-slate-300 font-medium uppercase tracking-wider mb-1 block">
+            <label className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider mb-1 block">
               Username
             </label>
             <input
@@ -85,15 +85,16 @@ export default function LoginModal() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="e.g. asif"
-              className="input input-bordered w-full bg-base-100/60 border-slate-700 focus:border-sky-500 text-sm text-white"
+              className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
               autoComplete="username"
+              autoCapitalize="none"
               required
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-slate-300 font-medium uppercase tracking-wider block">
+              <label className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider block">
                 Password
               </label>
               <button
@@ -109,7 +110,7 @@ export default function LoginModal() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
-              className="input input-bordered w-full bg-base-100/60 border-slate-700 focus:border-sky-500 text-sm text-white"
+              className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
               autoComplete="current-password"
               required
             />
@@ -118,7 +119,7 @@ export default function LoginModal() {
           <button
             type="submit"
             disabled={loading}
-            className="btn btn-primary w-full shadow-lg shadow-sky-500/20 text-sm mt-2"
+            className="btn btn-primary w-full shadow-lg shadow-sky-500/20 text-xs sm:text-sm font-semibold mt-2"
           >
             {loading ? (
               <span className="loading loading-spinner loading-sm" />
@@ -129,8 +130,8 @@ export default function LoginModal() {
         </form>
 
         {/* Quick hint badge for Super Admin */}
-        <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
-          <p className="text-[11px] text-slate-400 mb-2">Super Admin Access:</p>
+        <div className="mt-5 pt-3 border-t border-slate-800/80 text-center">
+          <p className="text-[11px] text-slate-400 mb-1.5">Super Admin Access:</p>
           <button
             type="button"
             onClick={handleFillSuperAdmin}

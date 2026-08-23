@@ -51,9 +51,14 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  const isSuperAdmin = user?.role === "super_admin" || user?.username === "asif";
-  const isAdminOrManager =
-    isSuperAdmin || user?.role === "admin" || user?.role === "sub_manager";
+  const isSuperAdmin =
+    user?.role === "super_admin" || user?.username?.toLowerCase() === "asif";
+  const isAdmin = isSuperAdmin || user?.role === "admin";
+  const isSubManager = user?.role === "sub_manager";
+  const isAdminOrManager = isSuperAdmin || isAdmin || isSubManager;
+
+  // STRICT REQUIREMENT: Only Admin and Super Admin can add member and edit meal
+  const canManageMembersAndMeals = isSuperAdmin || isAdmin;
 
   return (
     <AuthContext.Provider
@@ -62,7 +67,10 @@ export function AuthProvider({ children }) {
         loading,
         isLoggedIn: !!user,
         isSuperAdmin,
+        isAdmin,
+        isSubManager,
         isAdminOrManager,
+        canManageMembersAndMeals,
         login,
         logout,
         isLoginModalOpen,

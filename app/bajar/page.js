@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { getCurrentMonth, getMonthName, formatCurrency } from "@/lib/utils";
+import { getMonthName, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useMonth } from "@/context/MonthContext";
 
 export default function BajarPage() {
-  const { isLoggedIn, openLoginModal } = useAuth();
+  const { isLoggedIn, canManageMembersAndMeals, openLoginModal } = useAuth();
   const { selectedMonth, setSelectedMonth } = useMonth();
 
   const [members, setMembers] = useState([]);
@@ -19,6 +19,7 @@ export default function BajarPage() {
   const [amount, setAmount] = useState("");
   const [boughtBy, setBoughtBy] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -41,46 +42,49 @@ export default function BajarPage() {
     fetchData();
   }, [fetchData]);
 
+  // Normal members can access inputting to the bajar list freely!
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!isLoggedIn) {
-      openLoginModal();
-      return;
-    }
+    if (!description.trim() || !amount || !boughtBy) return;
 
-    if (!description || !amount || !boughtBy) return;
     setSubmitting(true);
+    setSubmitMsg("");
     try {
       const memberName = members.find((m) => m._id === boughtBy)?.name || "";
-      await fetch("/api/bajar", {
+      const res = await fetch("/api/bajar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date,
-          description,
-          amount,
+          description: description.trim(),
+          amount: Number(amount),
           boughtBy,
           boughtByName: memberName,
         }),
       });
-      setDescription("");
-      setAmount("");
-      fetchData();
+
+      if (res.ok) {
+        setDescription("");
+        setAmount("");
+        setSubmitMsg("✅ Bajar entry added successfully!");
+        fetchData();
+        setTimeout(() => setSubmitMsg(""), 3000);
+      }
     } catch (err) {
+      setSubmitMsg("❌ Error adding entry");
       console.error(err);
     }
     setSubmitting(false);
   }
 
   async function handleDelete(id) {
-    if (!isLoggedIn) {
-      openLoginModal();
-      return;
+    if (!confirm("Delete this bajar entry?")) return;
+    try {
+      await fetch(`/api/bajar?id=${id}`, { method: "DELETE" });
+      fetchData();
+    } catch (err) {
+      console.error(err);
     }
-
-    if (!confirm("Delete this entry?")) return;
-    await fetch(`/api/bajar?id=${id}`, { method: "DELETE" });
-    fetchData();
   }
 
   const totalAmount = entries.reduce(
@@ -102,9 +106,14 @@ export default function BajarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
-            🛒 Bajar List
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
+              🛒 Bajar List
+            </h1>
+            <span className="badge badge-sm bg-green-500/20 text-green-300 border-green-500/40 text-[10px]">
+              🌐 Open Entry for All Members
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             {getMonthName(selectedMonth)} — Market &amp; grocery expense records
           </p>
@@ -117,62 +126,87 @@ export default function BajarPage() {
         />
       </div>
 
-      {/* Add Entry Form */}
+      {submitMsg && (
+        <div className="mb-4 p-2.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-300 text-xs sm:text-sm font-medium text-center animate-fade-in">
+          {submitMsg}
+        </div>
+      )}
+
+      {/* Add Entry Form - Accessible by all members */}
       <form
         onSubmit={handleSubmit}
         className="glass-card p-4 sm:p-5 mb-6 animate-fade-in-up border-slate-800"
       >
         <h3 className="text-xs sm:text-sm font-semibold text-white mb-3 flex items-center gap-1.5">
-          <span>➕</span> Add New Bajar Entry
+          <span>➕</span> Input New Bajar Entry
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="input input-bordered input-sm bg-base-100/50 border-slate-700 text-xs sm:text-sm text-white"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Description (e.g. Chicken, Rice)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="input input-bordered input-sm bg-base-100/50 border-slate-700 text-xs sm:text-sm text-white"
-            required
-          />
-          <input
-            type="number"
-            placeholder="Amount (৳)"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="input input-bordered input-sm bg-base-100/50 border-slate-700 text-xs sm:text-sm text-white"
-            required
-          />
-          <select
-            value={boughtBy}
-            onChange={(e) => setBoughtBy(e.target.value)}
-            className="select select-bordered select-sm bg-base-100/50 border-slate-700 text-xs sm:text-sm text-white"
-            required
-          >
-            <option value="">Who bought?</option>
-            {members.map((m) => (
-              <option key={m._id} value={m._id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn btn-primary btn-sm text-xs sm:text-sm font-semibold shadow-md shadow-sky-500/20"
-          >
-            {submitting ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              "Add Entry"
-            )}
-          </button>
+          <div>
+            <label className="text-[11px] text-slate-400 block mb-1">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 text-xs sm:text-sm text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-slate-400 block mb-1">Description</label>
+            <input
+              type="text"
+              placeholder="e.g. Chicken, Rice, Oil"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 text-xs sm:text-sm text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-slate-400 block mb-1">Amount (৳)</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="e.g. 850"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 text-xs sm:text-sm text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-slate-400 block mb-1">Who bought?</label>
+            <select
+              value={boughtBy}
+              onChange={(e) => setBoughtBy(e.target.value)}
+              className="select select-bordered select-sm w-full bg-base-100/70 border-slate-700 text-xs sm:text-sm text-white"
+              required
+            >
+              <option value="">Select Member</option>
+              {members.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary btn-sm w-full text-xs sm:text-sm font-semibold shadow-md shadow-sky-500/20"
+            >
+              {submitting ? (
+                <span className="loading loading-spinner loading-xs" />
+              ) : (
+                "Add Bajar"
+              )}
+            </button>
+          </div>
         </div>
       </form>
 

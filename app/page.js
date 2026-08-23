@@ -6,6 +6,7 @@ import AddMemberModal from "@/components/AddMemberModal";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { getMonthName, formatCurrency } from "@/lib/utils";
 import { useMonth } from "@/context/MonthContext";
+import { useAuth } from "@/context/AuthContext";
 
 const quickLinks = [
   {
@@ -46,6 +47,7 @@ const quickLinks = [
 ];
 
 export default function Dashboard() {
+  const { canManageMembersAndMeals, openLoginModal } = useAuth();
   const {
     selectedMonth,
     setSelectedMonth,
@@ -192,8 +194,14 @@ export default function Dashboard() {
               <span>👥</span> Flat Members ({members.length})
             </h2>
             <button
-              onClick={() => setShowAddMember(true)}
-              className="btn btn-primary btn-xs gap-1"
+              onClick={() => {
+                if (!canManageMembersAndMeals) {
+                  openLoginModal();
+                } else {
+                  setShowAddMember(true);
+                }
+              }}
+              className="btn btn-primary btn-xs gap-1 font-semibold"
             >
               <span>+</span> Add
             </button>

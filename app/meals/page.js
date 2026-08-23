@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { getCurrentMonth, getMonthName, getDaysInMonth } from "@/lib/utils";
+import { getMonthName, getDaysInMonth } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useMonth } from "@/context/MonthContext";
 
 export default function MealsPage() {
-  const { isLoggedIn, isAdminOrManager, openLoginModal } = useAuth();
-  const { selectedMonth, setSelectedMonth, isCurrentMonth } = useMonth();
+  const { isLoggedIn, canManageMembersAndMeals, openLoginModal } = useAuth();
+  const { selectedMonth, setSelectedMonth } = useMonth();
 
   const [members, setMembers] = useState([]);
   const [meals, setMeals] = useState({});
@@ -61,6 +61,10 @@ export default function MealsPage() {
   }
 
   function setMeal(date, memberId, type, value) {
+    if (!canManageMembersAndMeals) {
+      openLoginModal();
+      return;
+    }
     const key = `${date}_${memberId}`;
     setMeals((prev) => ({
       ...prev,
@@ -96,7 +100,7 @@ export default function MealsPage() {
   }
 
   async function saveMeals() {
-    if (!isLoggedIn) {
+    if (!canManageMembersAndMeals) {
       openLoginModal();
       return;
     }
@@ -138,9 +142,20 @@ export default function MealsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
-            🍽️ Meal Count Sheet
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
+              🍽️ Meal Count Sheet
+            </h1>
+            {canManageMembersAndMeals ? (
+              <span className="badge badge-sm bg-green-500/20 text-green-300 border-green-500/40 text-[10px]">
+                ✍️ Admin Edit Enabled
+              </span>
+            ) : (
+              <span className="badge badge-sm bg-slate-800 text-slate-400 border-slate-700 text-[10px]">
+                🔒 View-Only
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             {getMonthName(selectedMonth)} — Track Day &amp; Night meals per person
           </p>
@@ -154,20 +169,45 @@ export default function MealsPage() {
             className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs sm:text-sm flex-1 sm:flex-none"
           />
 
-          <button
-            onClick={saveMeals}
-            disabled={saving}
-            className="btn btn-primary btn-sm gap-1.5 shadow-md shadow-sky-500/20 text-xs sm:text-sm flex-1 sm:flex-none"
-          >
-            {saving ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              "💾"
-            )}{" "}
-            Save Sheet
-          </button>
+          {canManageMembersAndMeals ? (
+            <button
+              onClick={saveMeals}
+              disabled={saving}
+              className="btn btn-primary btn-sm gap-1.5 shadow-md shadow-sky-500/20 text-xs sm:text-sm flex-1 sm:flex-none font-semibold"
+            >
+              {saving ? (
+                <span className="loading loading-spinner loading-xs" />
+              ) : (
+                "💾"
+              )}{" "}
+              Save Sheet
+            </button>
+          ) : (
+            <button
+              onClick={openLoginModal}
+              className="btn btn-ghost btn-sm gap-1.5 border border-slate-700 text-slate-300 text-xs sm:text-sm flex-1 sm:flex-none hover:bg-slate-800"
+            >
+              <span>🔐</span> Admin Login to Edit
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Permission Notice for non-admins */}
+      {!canManageMembersAndMeals && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-2 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span>ℹ️</span>
+            <span>Only Admin and Super Admin can edit meals. Normal members can view all meal history.</span>
+          </div>
+          <button
+            onClick={openLoginModal}
+            className="btn btn-warning btn-xs text-[11px] shrink-0"
+          >
+            Admin Sign In
+          </button>
+        </div>
+      )}
 
       {saveMsg && (
         <div className="mb-4 p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs sm:text-sm font-medium text-center animate-fade-in">
@@ -255,18 +295,29 @@ export default function MealsPage() {
                               min="0"
                               max="5"
                               step="0.5"
+                              inputMode="decimal"
+                              readOnly={!canManageMembersAndMeals}
                               value={getMeal(date, m._id, "dayMeal") || ""}
                               onChange={(e) =>
                                 setMeal(date, m._id, "dayMeal", e.target.value)
                               }
+                              onClick={() => {
+                                if (!canManageMembersAndMeals) openLoginModal();
+                              }}
                               placeholder="0"
-                              className="meal-input text-xs sm:text-sm"
+                              className={`meal-input text-xs sm:text-sm ${
+                                !canManageMembersAndMeals
+                                  ? "cursor-pointer opacity-80"
+                                  : ""
+                              }`}
                             />
                             <input
                               type="number"
                               min="0"
                               max="5"
                               step="0.5"
+                              inputMode="decimal"
+                              readOnly={!canManageMembersAndMeals}
                               value={getMeal(date, m._id, "nightMeal") || ""}
                               onChange={(e) =>
                                 setMeal(
@@ -276,8 +327,15 @@ export default function MealsPage() {
                                   e.target.value
                                 )
                               }
+                              onClick={() => {
+                                if (!canManageMembersAndMeals) openLoginModal();
+                              }}
                               placeholder="0"
-                              className="meal-input text-xs sm:text-sm"
+                              className={`meal-input text-xs sm:text-sm ${
+                                !canManageMembersAndMeals
+                                  ? "cursor-pointer opacity-80"
+                                  : ""
+                              }`}
                             />
                           </div>
                         </td>

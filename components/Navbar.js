@@ -24,8 +24,12 @@ export default function Navbar() {
     nextMonth,
     resetToCurrentMonth,
     isCurrentMonth,
-    historyList,
   } = useMonth();
+
+  function closeDrawer() {
+    const drawer = document.getElementById("mobile-drawer");
+    if (drawer) drawer.checked = false;
+  }
 
   return (
     <>
@@ -213,12 +217,13 @@ export default function Navbar() {
                     <p className="text-[10px] text-slate-400">Meal Management</p>
                   </div>
                 </div>
-                <label
-                  htmlFor="mobile-drawer"
+                <button
+                  type="button"
+                  onClick={closeDrawer}
                   className="btn btn-ghost btn-sm btn-circle text-slate-400"
                 >
                   ✕
-                </label>
+                </button>
               </div>
 
               {/* Mobile Month Switcher */}
@@ -267,11 +272,14 @@ export default function Navbar() {
                         {user?.name || user?.username}
                       </p>
                       <p className="text-[11px] text-sky-400 flex items-center gap-1 mt-0.5">
-                        {isSuperAdmin ? "👑 Super Admin" : "⭐ Sub Manager"}
+                        {isSuperAdmin ? "👑 Super Admin" : "⭐ Manager"}
                       </p>
                     </div>
                     <button
-                      onClick={logout}
+                      onClick={() => {
+                        closeDrawer();
+                        logout();
+                      }}
                       className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/20"
                     >
                       Logout
@@ -281,12 +289,11 @@ export default function Navbar() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-slate-300 font-medium">Viewing as Guest</p>
-                      <p className="text-[10px] text-slate-500">Sign in to edit meals & data</p>
+                      <p className="text-[10px] text-slate-500">Sign in for Admin controls</p>
                     </div>
                     <button
                       onClick={() => {
-                        const drawer = document.getElementById("mobile-drawer");
-                        if (drawer) drawer.checked = false;
+                        closeDrawer();
                         openLoginModal();
                       }}
                       className="btn btn-primary btn-xs"
@@ -298,24 +305,24 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Navigation Links */}
+            {/* Navigation Links - Automatically closes drawer on click */}
             <div className="p-3 flex flex-col gap-1.5">
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
                 return (
-                  <label key={link.href} htmlFor="mobile-drawer">
-                    <Link
-                      href={link.href}
-                      className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        isActive
-                          ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
-                          : "text-slate-300 hover:text-sky-300 hover:bg-slate-800/60"
-                      }`}
-                    >
-                      <span className="text-lg">{link.icon}</span>
-                      <span>{link.label}</span>
-                    </Link>
-                  </label>
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={closeDrawer}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      isActive
+                        ? "bg-sky-500/15 text-sky-400 border border-sky-500/30 font-semibold"
+                        : "text-slate-300 hover:text-sky-300 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <span className="text-lg">{link.icon}</span>
+                    <span>{link.label}</span>
+                  </Link>
                 );
               })}
             </div>

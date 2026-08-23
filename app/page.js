@@ -21,13 +21,7 @@ const quickLinks = [
     desc: "Market expenses",
     color: "from-green-500/10 to-emerald-500/5 border-green-500/20",
   },
-  {
-    href: "/cash",
-    icon: "💰",
-    title: "Cash Collection",
-    desc: "Member contributions",
-    color: "from-amber-500/10 to-yellow-500/5 border-amber-500/20",
-  },
+
   {
     href: "/summary",
     icon: "📊",
@@ -201,19 +195,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Financial Overview */}
+      {/* Meal Overview */}
       {summary && summary.members && summary.members.length > 0 && (
         <div className="glass-card p-5 animate-fade-in-up">
           <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-            <span>💹</span> Financial Overview
+            <span>💹</span> Meal Overview
           </h2>
           <div className="grid sm:grid-cols-3 gap-4 mb-4">
-            <div className="bg-base-100/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-slate-500 mb-1">Total Collection</p>
-              <p className="text-lg font-bold text-green-400">
-                {formatCurrency(summary.totalCollection)}
-              </p>
-            </div>
             <div className="bg-base-100/40 rounded-lg p-3 text-center">
               <p className="text-xs text-slate-500 mb-1">Total Cost</p>
               <p className="text-lg font-bold text-pink-400">
@@ -221,12 +209,15 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="bg-base-100/40 rounded-lg p-3 text-center">
-              <p className="text-xs text-slate-500 mb-1">Cash Balance</p>
-              <p
-                className={`text-lg font-bold ${summary.cashBalance >= 0 ? "text-green-400" : "text-red-400"}`}
-              >
-                {summary.cashBalance >= 0 ? "+" : ""}
-                {formatCurrency(summary.cashBalance)}
+              <p className="text-xs text-slate-500 mb-1">Total Meals</p>
+              <p className="text-lg font-bold text-purple-400">
+                {summary.grandTotalMeals}
+              </p>
+            </div>
+            <div className="bg-base-100/40 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Meal Rate</p>
+              <p className="text-lg font-bold text-sky-400">
+                {formatCurrency(summary.mealRate)}
               </p>
             </div>
           </div>

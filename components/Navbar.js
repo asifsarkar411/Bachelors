@@ -1,117 +1,231 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { href: "/", label: "Dashboard", icon: "🏠" },
   { href: "/meals", label: "Meal Count", icon: "🍽️" },
   { href: "/bajar", label: "Bajar List", icon: "🛒" },
-  { href: "/cash", label: "Cash", icon: "💰" },
   { href: "/summary", label: "Summary", icon: "📊" },
   { href: "/flat-expenses", label: "Flat Expenses", icon: "🏢" },
-  { href: "/admin", label: "Admin", icon: "⚙️" },
+  { href: "/admin", label: "Admin Panel", icon: "⚙️" },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user, isLoggedIn, isSuperAdmin, logout, openLoginModal } = useAuth();
 
   return (
     <>
-      {/* Desktop Navbar */}
-      <nav className="sticky top-0 z-50 glass-card !rounded-none border-x-0 border-t-0">
+      {/* Desktop & Mobile Navbar */}
+      <nav className="sticky top-0 z-50 glass-card !rounded-none border-x-0 border-t-0 bg-slate-900/80 backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <span className="text-2xl">🍛</span>
-              <span className="font-bold text-lg gradient-text hidden sm:inline">
-                Bachelor Flat
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <span className="text-2xl transform group-hover:scale-110 transition-transform">
+                🍛
               </span>
+              <div>
+                <span className="font-bold text-lg gradient-text tracking-tight block leading-tight">
+                  Bachelor Flat
+                </span>
+                <span className="text-[10px] text-slate-400 block -mt-0.5 sm:hidden font-medium">
+                  Meal Manager
+                </span>
+              </div>
             </Link>
 
-            {/* Desktop Links */}
-            <div className="hidden lg:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-                    pathname === link.href
-                      ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
-                      : "text-slate-400 hover:text-sky-300 hover:bg-slate-800/50"
-                  }`}
-                >
-                  <span className="text-base">{link.icon}</span>
-                  <span>{link.label}</span>
-                </Link>
-              ))}
+            {/* Desktop Navigation Links */}
+            <div className="hidden lg:flex items-center gap-1.5">
+              {navLinks.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                      isActive
+                        ? "bg-sky-500/15 text-sky-400 border border-sky-500/30 shadow-sm shadow-sky-500/10"
+                        : "text-slate-300 hover:text-sky-300 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <span className="text-base">{link.icon}</span>
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
             </div>
 
-            {/* Mobile Menu Button */}
-            <div className="lg:hidden">
-              <label
-                htmlFor="mobile-drawer"
-                className="btn btn-ghost btn-sm btn-circle"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  className="w-5 h-5 stroke-current"
+            {/* User Auth Info & Actions */}
+            <div className="flex items-center gap-2">
+              {isLoggedIn ? (
+                <div className="flex items-center gap-2">
+                  {/* Role Badge */}
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
+                    {isSuperAdmin ? (
+                      <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                        <span>👑</span> Super Admin
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-sky-400 font-semibold">
+                        <span>⭐</span> {user?.role === "admin" ? "Admin" : "Sub Manager"} ({user?.name || user?.username})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Logout Button */}
+                  <button
+                    onClick={logout}
+                    className="btn btn-ghost btn-sm text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 border border-rose-500/20"
+                    title="Logout"
+                  >
+                    <span className="hidden sm:inline">Sign Out</span>
+                    <span className="sm:hidden">🚪</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={openLoginModal}
+                  className="btn btn-primary btn-sm text-xs font-semibold px-3.5 shadow-md shadow-sky-500/20 flex items-center gap-1.5"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              </label>
+                  <span>🔐</span>
+                  <span className="hidden sm:inline">Manager Login</span>
+                  <span className="sm:hidden">Login</span>
+                </button>
+              )}
+
+              {/* Mobile Drawer Hamburger */}
+              <div className="lg:hidden ml-1">
+                <label
+                  htmlFor="mobile-drawer"
+                  className="btn btn-ghost btn-sm btn-circle text-slate-300 hover:bg-slate-800"
+                  aria-label="Toggle navigation menu"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    className="w-5 h-5 stroke-current"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </label>
+              </div>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer Menu */}
       <input id="mobile-drawer" type="checkbox" className="hidden peer" />
       <div className="fixed inset-0 z-[100] hidden peer-checked:flex lg:hidden">
+        {/* Backdrop */}
         <label
           htmlFor="mobile-drawer"
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         />
-        <div className="relative w-72 max-w-[80vw] bg-base-200 h-full overflow-y-auto animate-slide-in-left shadow-2xl">
-          <div className="p-4 border-b border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🍛</span>
-                <span className="font-bold text-lg gradient-text">
-                  Bachelor Flat
-                </span>
+
+        {/* Drawer Content */}
+        <div className="relative w-80 max-w-[85vw] bg-base-200 h-full overflow-y-auto animate-slide-in-left shadow-2xl border-r border-slate-800 flex flex-col justify-between">
+          <div>
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-800/80 bg-base-300/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🍛</span>
+                  <div>
+                    <span className="font-bold text-base gradient-text">
+                      Bachelor Flat
+                    </span>
+                    <p className="text-[10px] text-slate-400">Meal Management</p>
+                  </div>
+                </div>
+                <label
+                  htmlFor="mobile-drawer"
+                  className="btn btn-ghost btn-sm btn-circle text-slate-400"
+                >
+                  ✕
+                </label>
               </div>
-              <label
-                htmlFor="mobile-drawer"
-                className="btn btn-ghost btn-sm btn-circle"
-              >
-                ✕
-              </label>
+
+              {/* Mobile Auth Status Banner */}
+              <div className="mt-4 p-2.5 rounded-xl bg-base-100/60 border border-slate-700/60">
+                {isLoggedIn ? (
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 pr-2">
+                      <p className="text-xs font-semibold text-white truncate">
+                        {user?.name || user?.username}
+                      </p>
+                      <p className="text-[11px] text-sky-400 flex items-center gap-1 mt-0.5">
+                        {isSuperAdmin ? "👑 Super Admin" : "⭐ Sub Manager"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={logout}
+                      className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/20"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-slate-300 font-medium">Viewing as Guest</p>
+                      <p className="text-[10px] text-slate-500">Sign in to edit meals & data</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const drawer = document.getElementById("mobile-drawer");
+                        if (drawer) drawer.checked = false;
+                        openLoginModal();
+                      }}
+                      className="btn btn-primary btn-xs"
+                    >
+                      Login
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation Links */}
+            <div className="p-3 flex flex-col gap-1.5">
+              {navLinks.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <label key={link.href} htmlFor="mobile-drawer">
+                    <Link
+                      href={link.href}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                        isActive
+                          ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
+                          : "text-slate-300 hover:text-sky-300 hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <span className="text-xl">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </Link>
+                  </label>
+                );
+              })}
             </div>
           </div>
-          <div className="p-3 flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <label key={link.href} htmlFor="mobile-drawer">
-                <Link
-                  href={link.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                    pathname === link.href
-                      ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
-                      : "text-slate-400 hover:text-sky-300 hover:bg-slate-800/50"
-                  }`}
-                >
-                  <span className="text-xl">{link.icon}</span>
-                  <span>{link.label}</span>
-                </Link>
-              </label>
-            ))}
+
+          {/* Drawer Footer Developer Credit */}
+          <div className="p-4 border-t border-slate-800 bg-base-300/30 text-center">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+              Developed by
+            </p>
+            <p className="text-xs font-semibold gradient-text mt-0.5">
+              SM FERDOUS AHMMED (ASIF)
+            </p>
           </div>
         </div>
       </div>

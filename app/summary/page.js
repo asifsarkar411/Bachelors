@@ -6,21 +6,15 @@ import { getCurrentMonth, getMonthName, formatCurrency } from "@/lib/utils";
 
 export default function SummaryPage() {
   const [summary, setSummary] = useState(null);
-  const [flatExpenses, setFlatExpenses] = useState([]);
   const [month, setMonth] = useState(getCurrentMonth());
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [summaryRes, flatRes] = await Promise.all([
-        fetch(`/api/summary?month=${month}`),
-        fetch(`/api/flat-expenses?month=${month}`),
-      ]);
-      const summaryData = await summaryRes.json();
-      const flatData = await flatRes.json();
-      setSummary(summaryData);
-      setFlatExpenses(Array.isArray(flatData) ? flatData : []);
+      const res = await fetch(`/api/summary?month=${month}`);
+      const data = await res.json();
+      setSummary(data);
     } catch (err) {
       console.error(err);
     }
@@ -39,23 +33,16 @@ export default function SummaryPage() {
       </div>
     );
 
-  const totalFlatExpenses = flatExpenses.reduce(
-    (sum, e) => sum + (Number(e.amount) || 0),
-    0
-  );
-  const memberCount = summary.members?.length || 1;
-  const perPersonFlat = totalFlatExpenses / memberCount;
-
   return (
     <div className="page-container">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
           <h1 className="text-2xl font-bold gradient-text">
-            📊 Overall Summary
+            📊 Meal Summary
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            {getMonthName(month)} — Complete financial breakdown
+            {getMonthName(month)} — Meal rate & per-person breakdown
           </p>
         </div>
         <input
@@ -67,20 +54,13 @@ export default function SummaryPage() {
       </div>
 
       {/* Key Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-children">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 stagger-children">
         <StatsCard
           icon="💸"
           label="Total Cost"
           value={formatCurrency(summary.totalCost)}
           sub="All bajar expenses"
           color="pink"
-        />
-        <StatsCard
-          icon="💰"
-          label="Collection"
-          value={formatCurrency(summary.totalCollection)}
-          sub="Total cash received"
-          color="green"
         />
         <StatsCard
           icon="🍽️"
@@ -98,24 +78,24 @@ export default function SummaryPage() {
         />
       </div>
 
-      {/* Cash Balance */}
-      <div
-        className={`glass-card p-5 mb-6 text-center animate-fade-in-up ${
-          summary.cashBalance >= 0
-            ? "bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-green-500/20"
-            : "bg-gradient-to-r from-red-500/10 to-rose-500/5 border-red-500/20"
-        }`}
-      >
+      {/* Meal Rate Breakdown */}
+      <div className="glass-card p-5 mb-6 text-center animate-fade-in-up bg-gradient-to-r from-sky-500/10 to-purple-500/10 border-sky-500/20">
         <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">
-          Cash Balance (Collection - Cost)
+          Meal Rate Calculation
         </p>
-        <p
-          className={`text-3xl font-bold ${
-            summary.cashBalance >= 0 ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          {summary.cashBalance >= 0 ? "+" : ""}
-          {formatCurrency(summary.cashBalance)}
+        <p className="text-lg text-slate-300">
+          <span className="text-pink-400 font-bold">
+            {formatCurrency(summary.totalCost)}
+          </span>
+          <span className="text-slate-500 mx-2">÷</span>
+          <span className="text-purple-400 font-bold">
+            {summary.grandTotalMeals} meals
+          </span>
+          <span className="text-slate-500 mx-2">=</span>
+          <span className="text-sky-400 font-bold text-2xl">
+            {formatCurrency(summary.mealRate)}
+          </span>
+          <span className="text-slate-500 text-sm ml-1">per meal</span>
         </p>
       </div>
 
@@ -136,9 +116,7 @@ export default function SummaryPage() {
                 <th>Name</th>
                 <th className="text-center">Total Meals</th>
                 <th className="text-right">Meal Cost</th>
-                <th className="text-right">Paid</th>
-                <th className="text-right">Balance</th>
-                <th className="text-center">Status</th>
+                <th className="text-right">Bajar Spent</th>
               </tr>
             </thead>
             <tbody>
@@ -157,160 +135,79 @@ export default function SummaryPage() {
                   <td className="text-center text-purple-300 font-semibold">
                     {m.totalMeals}
                   </td>
-                  <td className="text-right text-pink-400 text-sm">
+                  <td className="text-right text-pink-400 font-semibold text-sm">
                     {formatCurrency(m.mealCost)}
                   </td>
                   <td className="text-right text-green-400 text-sm">
-                    {formatCurrency(m.totalPaid)}
-                  </td>
-                  <td
-                    className={`text-right font-bold text-sm ${
-                      m.balance >= 0 ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    {m.balance >= 0 ? "+" : ""}
-                    {formatCurrency(m.balance)}
-                  </td>
-                  <td className="text-center">
-                    <span
-                      className={`badge badge-sm ${
-                        m.balance >= 0 ? "badge-positive" : "badge-negative"
-                      }`}
-                    >
-                      {m.balance >= 0 ? "Advance" : "Due"}
-                    </span>
+                    {formatCurrency(m.totalBajar)}
                   </td>
                 </tr>
               ))}
+
+              {/* Total Row */}
+              <tr className="bg-sky-500/10 font-bold">
+                <td className="text-sky-300">TOTAL</td>
+                <td className="text-center text-purple-300">
+                  {summary.grandTotalMeals}
+                </td>
+                <td className="text-right text-pink-300">
+                  {formatCurrency(summary.totalCost)}
+                </td>
+                <td className="text-right text-green-300">
+                  {formatCurrency(summary.totalCost)}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Flat Expenses Summary (if any) */}
-      {totalFlatExpenses > 0 && (
-        <div className="glass-card overflow-hidden mb-6 animate-fade-in-up">
-          <div className="p-4 border-b border-slate-700/50">
-            <h2 className="font-semibold text-white flex items-center gap-2">
-              <span>🏢</span> Flat Expenses Split
-            </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Total: {formatCurrency(totalFlatExpenses)} ÷ {memberCount}{" "}
-              members = {formatCurrency(perPersonFlat)} per person
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th className="text-right">Amount</th>
-                  <th className="text-right">Per Person</th>
-                </tr>
-              </thead>
-              <tbody>
-                {flatExpenses.map((e) => (
-                  <tr key={e._id}>
-                    <td className="text-sm text-white capitalize">
-                      {e.category}
-                    </td>
-                    <td className="text-right text-pink-400 text-sm">
-                      {formatCurrency(e.amount)}
-                    </td>
-                    <td className="text-right text-slate-300 text-sm">
-                      {formatCurrency(e.amount / memberCount)}
-                    </td>
-                  </tr>
-                ))}
-                <tr className="bg-pink-500/10 font-bold">
-                  <td className="text-pink-300">TOTAL</td>
-                  <td className="text-right text-pink-300">
-                    {formatCurrency(totalFlatExpenses)}
-                  </td>
-                  <td className="text-right text-pink-300">
-                    {formatCurrency(perPersonFlat)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Grand Total Per Person */}
+      {/* Per-Person Cards */}
       {summary.members && summary.members.length > 0 && (
-        <div className="glass-card p-5 animate-fade-in-up">
+        <div className="animate-fade-in-up">
           <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-            <span>🧮</span> Final Settlement (Meal + Flat)
+            <span>🧮</span> Individual Meal Cost
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {summary.members.map((m) => {
-              const mealBalance = m.balance;
-              const flatShare = perPersonFlat;
-              const finalBalance = mealBalance - flatShare;
-              return (
-                <div
-                  key={m.memberId}
-                  className={`rounded-xl p-4 border ${
-                    finalBalance >= 0
-                      ? "bg-green-500/5 border-green-500/20"
-                      : "bg-red-500/5 border-red-500/20"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-                      {m.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="font-medium text-white text-sm">
-                      {m.name}
+            {summary.members.map((m) => (
+              <div
+                key={m.memberId}
+                className="glass-card p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
+                    {m.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="font-medium text-white text-sm">
+                    {m.name}
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Total Meals:</span>
+                    <span className="text-purple-400 font-semibold">
+                      {m.totalMeals}
                     </span>
                   </div>
-                  <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Meal Rate:</span>
+                    <span className="text-sky-400">
+                      {formatCurrency(summary.mealRate)}
+                    </span>
+                  </div>
+                  <div className="border-t border-slate-700/50 pt-1.5 mt-1.5">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Meal Cost:</span>
-                      <span className="text-pink-400">
+                      <span className="text-slate-300 font-medium">
+                        Meal Cost:
+                      </span>
+                      <span className="font-bold text-pink-400 text-sm">
                         {formatCurrency(m.mealCost)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Flat Share:</span>
-                      <span className="text-purple-400">
-                        {formatCurrency(flatShare)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Total Due:</span>
-                      <span className="text-white font-medium">
-                        {formatCurrency(m.mealCost + flatShare)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Paid:</span>
-                      <span className="text-green-400">
-                        {formatCurrency(m.totalPaid)}
-                      </span>
-                    </div>
-                    <div className="border-t border-slate-700/50 pt-1 mt-1">
-                      <div className="flex justify-between">
-                        <span className="text-slate-300 font-medium">
-                          Balance:
-                        </span>
-                        <span
-                          className={`font-bold ${
-                            finalBalance >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {finalBalance >= 0 ? "+" : ""}
-                          {formatCurrency(finalBalance)}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}

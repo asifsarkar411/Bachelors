@@ -29,14 +29,8 @@ export async function GET(request) {
       date: { $gte: startDate, $lte: endDate }
     }).toArray();
     
-    // Get all cash collections for the month
-    const cash = await db.collection("cash_collections").find({
-      date: { $gte: startDate, $lte: endDate }
-    }).toArray();
-    
     // Calculate totals
     const totalCost = bajar.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-    const totalCollection = cash.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
     
     // Calculate per-member stats
     const memberStats = members.map((member) => {
@@ -49,11 +43,6 @@ export async function GET(request) {
         0
       );
       
-      // Total cash paid by this member
-      const totalPaid = cash
-        .filter((c) => c.memberId === memberId)
-        .reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-      
       // Total bajar done by this member
       const totalBajar = bajar
         .filter((b) => b.boughtBy === memberId)
@@ -63,7 +52,6 @@ export async function GET(request) {
         memberId,
         name: member.name,
         totalMeals,
-        totalPaid,
         totalBajar,
       };
     });
@@ -71,24 +59,20 @@ export async function GET(request) {
     const grandTotalMeals = memberStats.reduce((sum, m) => sum + m.totalMeals, 0);
     const mealRate = grandTotalMeals > 0 ? totalCost / grandTotalMeals : 0;
     
-    // Calculate balance for each member
+    // Calculate meal cost for each member
     const memberSummary = memberStats.map((m) => {
       const mealCost = m.totalMeals * mealRate;
-      const balance = m.totalPaid - mealCost; // positive = overpaid, negative = owes
       return {
         ...m,
         mealCost: Math.round(mealCost * 100) / 100,
-        balance: Math.round(balance * 100) / 100,
       };
     });
     
     return NextResponse.json({
       month,
       totalCost,
-      totalCollection,
       grandTotalMeals,
       mealRate: Math.round(mealRate * 100) / 100,
-      cashBalance: totalCollection - totalCost,
       members: memberSummary,
     });
   } catch (error) {

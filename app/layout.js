@@ -3,6 +3,8 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DeveloperPopup from "@/components/DeveloperPopup";
+import LoginModal from "@/components/LoginModal";
+import { AuthProvider } from "@/context/AuthContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -12,21 +14,29 @@ const inter = Inter({
 export const metadata = {
   title: "Bachelor Flat - Meal Management System",
   description:
-    "Complete meal count, expense tracking, and flat management system for bachelor flats. Track meals, bajar, cash collections, and flat expenses effortlessly.",
-  keywords: "bachelor flat, meal management, expense tracker, meal count",
+    "Complete meal count, expense tracking, and flat management system for bachelor flats with Super Admin & Manager controls.",
+  keywords: "bachelor flat, meal management, expense tracker, meal count, manager",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" data-theme="night">
       <head>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍛</text></svg>" />
+        <link
+          rel="icon"
+          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍛</text></svg>"
+        />
       </head>
-      <body className={`${inter.variable} font-sans min-h-screen flex flex-col`}>
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <DeveloperPopup />
+      <body
+        className={`${inter.variable} font-sans min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white`}
+      >
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 pb-10">{children}</main>
+          <Footer />
+          <DeveloperPopup />
+          <LoginModal />
+        </AuthProvider>
       </body>
     </html>
   );

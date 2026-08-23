@@ -2,8 +2,11 @@
 import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { getCurrentMonth, getMonthName, getDaysInMonth } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export default function MealsPage() {
+  const { isLoggedIn, isAdminOrManager, openLoginModal } = useAuth();
+
   const [members, setMembers] = useState([]);
   const [meals, setMeals] = useState({});
   const [month, setMonth] = useState(getCurrentMonth());
@@ -92,6 +95,11 @@ export default function MealsPage() {
   }
 
   async function saveMeals() {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+
     setSaving(true);
     setSaveMsg("");
     try {
@@ -129,35 +137,39 @@ export default function MealsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold gradient-text">🍽️ Meal Count Sheet</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Track Day & Night meals for each member
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
+            🍽️ Meal Count Sheet
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            {getMonthName(month)} — Track Day &amp; Night meals per person
           </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <input
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="input input-bordered input-sm bg-base-200 border-slate-700 text-sm"
+            className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs sm:text-sm flex-1 sm:flex-none"
           />
+
           <button
             onClick={saveMeals}
             disabled={saving}
-            className="btn btn-primary btn-sm gap-1"
+            className="btn btn-primary btn-sm gap-1.5 shadow-md shadow-sky-500/20 text-xs sm:text-sm flex-1 sm:flex-none"
           >
             {saving ? (
               <span className="loading loading-spinner loading-xs" />
             ) : (
               "💾"
             )}{" "}
-            Save All
+            Save Sheet
           </button>
         </div>
       </div>
 
       {saveMsg && (
-        <div className="mb-4 text-sm font-medium text-center animate-fade-in">
+        <div className="mb-4 p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs sm:text-sm font-medium text-center animate-fade-in">
           {saveMsg}
         </div>
       )}
@@ -170,34 +182,34 @@ export default function MealsPage() {
           </p>
         </div>
       ) : (
-        <div className="glass-card overflow-hidden animate-fade-in-up">
+        <div className="glass-card overflow-hidden animate-fade-in-up border-slate-800">
           <div className="overflow-x-auto max-h-[75vh]">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th className="!sticky left-0 z-20 bg-slate-900/95 min-w-[50px]">
+                  <th className="!sticky left-0 z-20 bg-slate-900/95 min-w-[65px]">
                     Date
                   </th>
                   {members.map((m) => (
                     <th
                       key={m._id}
                       colSpan={2}
-                      className="text-center !text-sky-300"
+                      className="text-center !text-sky-300 min-w-[100px]"
                     >
                       {m.name}
                     </th>
                   ))}
-                  <th className="text-center !text-amber-300">Day Total</th>
+                  <th className="text-center !text-amber-300 min-w-[80px]">Day Total</th>
                 </tr>
                 <tr>
                   <th className="!sticky left-0 z-20 bg-slate-900/95"></th>
                   {members.map((m) => (
                     <th key={m._id} colSpan={2} className="!p-0">
                       <div className="flex">
-                        <span className="flex-1 text-center text-[10px] py-1 text-green-400 border-r border-slate-700/50">
+                        <span className="flex-1 text-center text-[10px] py-1 text-green-400 border-r border-slate-700/50 bg-slate-900/60">
                           Day
                         </span>
-                        <span className="flex-1 text-center text-[10px] py-1 text-purple-400">
+                        <span className="flex-1 text-center text-[10px] py-1 text-purple-400 bg-slate-900/60">
                           Night
                         </span>
                       </div>
@@ -212,35 +224,47 @@ export default function MealsPage() {
                   const dayName = new Date(date).toLocaleDateString("en-US", {
                     weekday: "short",
                   });
+                  const isToday =
+                    new Date().toISOString().split("T")[0] === date;
+
                   return (
-                    <tr key={date}>
-                      <td className="!sticky left-0 z-10 bg-slate-900/90 backdrop-blur-sm whitespace-nowrap">
-                        <span className="font-medium text-white text-sm">
+                    <tr
+                      key={date}
+                      className={isToday ? "bg-sky-500/5" : ""}
+                    >
+                      <td
+                        className={`!sticky left-0 z-10 whitespace-nowrap ${
+                          isToday
+                            ? "bg-slate-900/95 border-l-2 border-sky-400"
+                            : "bg-slate-900/90"
+                        } backdrop-blur-sm`}
+                      >
+                        <span className="font-semibold text-white text-xs sm:text-sm">
                           {dayNum}
                         </span>
-                        <span className="text-[10px] text-slate-500 ml-1">
+                        <span className="text-[10px] text-slate-400 ml-1">
                           {dayName}
                         </span>
                       </td>
                       {members.map((m) => (
                         <td key={`${date}_${m._id}`} colSpan={2} className="!p-1">
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 justify-center">
                             <input
                               type="number"
                               min="0"
-                              max="2"
+                              max="5"
                               step="0.5"
                               value={getMeal(date, m._id, "dayMeal") || ""}
                               onChange={(e) =>
                                 setMeal(date, m._id, "dayMeal", e.target.value)
                               }
                               placeholder="0"
-                              className="meal-input"
+                              className="meal-input text-xs sm:text-sm"
                             />
                             <input
                               type="number"
                               min="0"
-                              max="2"
+                              max="5"
                               step="0.5"
                               value={getMeal(date, m._id, "nightMeal") || ""}
                               onChange={(e) =>
@@ -252,12 +276,12 @@ export default function MealsPage() {
                                 )
                               }
                               placeholder="0"
-                              className="meal-input"
+                              className="meal-input text-xs sm:text-sm"
                             />
                           </div>
                         </td>
                       ))}
-                      <td className="text-center font-semibold text-amber-300 text-sm">
+                      <td className="text-center font-bold text-amber-300 text-xs sm:text-sm">
                         {getDayTotal(date) || "-"}
                       </td>
                     </tr>
@@ -265,20 +289,20 @@ export default function MealsPage() {
                 })}
 
                 {/* Total Row */}
-                <tr className="bg-sky-500/10 font-bold">
-                  <td className="!sticky left-0 z-10 bg-sky-900/40 backdrop-blur-sm text-sky-300">
+                <tr className="bg-sky-500/15 font-bold border-t-2 border-sky-500/30">
+                  <td className="!sticky left-0 z-10 bg-sky-950/90 backdrop-blur-sm text-sky-300 font-extrabold text-xs sm:text-sm">
                     TOTAL
                   </td>
                   {members.map((m) => (
                     <td
                       key={`total_${m._id}`}
                       colSpan={2}
-                      className="text-center text-sky-300 text-lg"
+                      className="text-center text-sky-300 text-sm sm:text-base font-extrabold"
                     >
                       {getMemberTotal(m._id)}
                     </td>
                   ))}
-                  <td className="text-center text-amber-300 text-lg">
+                  <td className="text-center text-amber-300 text-sm sm:text-base font-extrabold">
                     {getGrandTotal()}
                   </td>
                 </tr>
@@ -288,18 +312,23 @@ export default function MealsPage() {
         </div>
       )}
 
-      {/* Summary Stats */}
+      {/* Summary Cards */}
       {members.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 stagger-children">
-          {members.map((m) => (
-            <div key={m._id} className="glass-card p-3 text-center">
-              <p className="text-xs text-slate-400 truncate">{m.name}</p>
-              <p className="text-xl font-bold text-white mt-1">
-                {getMemberTotal(m._id)}
-              </p>
-              <p className="text-[10px] text-slate-500">meals</p>
-            </div>
-          ))}
+        <div className="mt-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+            Member Monthly Meal Count
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 stagger-children">
+            {members.map((m) => (
+              <div key={m._id} className="glass-card p-3 text-center">
+                <p className="text-xs text-slate-400 truncate">{m.name}</p>
+                <p className="text-xl font-bold text-white mt-1">
+                  {getMemberTotal(m._id)}
+                </p>
+                <p className="text-[10px] text-slate-500">meals</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

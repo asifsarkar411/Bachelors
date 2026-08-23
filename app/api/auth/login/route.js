@@ -80,22 +80,42 @@ export async function POST(request) {
       }
     }
 
-    // 2. Check custom assigned admins / sub-managers in users collection
+    // 2. Check custom assigned admins / sub-managers / members in users collection
     try {
       const user = await db.collection("users").findOne({
         username: cleanUser,
         password: password,
-        active: true,
       });
 
       if (user) {
+        if (user.status === "pending" || (!user.active && user.status !== "approved")) {
+          return NextResponse.json(
+            {
+              error:
+                "⏳ Your flat member sign-up request is currently pending approval by Super Admin. You can access the system once approved.",
+            },
+            { status: 403 }
+          );
+        }
+
+        if (user.active === false) {
+          return NextResponse.json(
+            {
+              error:
+                "🚫 Your account is currently inactive. Please contact Super Admin.",
+            },
+            { status: 403 }
+          );
+        }
+
         return NextResponse.json({
           success: true,
           user: {
             id: user._id.toString(),
             username: user.username,
             name: user.name || user.username,
-            role: user.role || "sub_manager",
+            role: user.role || "member",
+            status: user.status || "approved",
             isSuperAdmin: false,
             memberId: user.memberId || null,
           },

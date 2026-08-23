@@ -132,18 +132,29 @@ export default function Navbar() {
             {/* Right: User Auth Info & Actions */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               {isLoggedIn ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   {/* Role Badge */}
-                  <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
+                  <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs">
                     {isSuperAdmin ? (
                       <span className="flex items-center gap-1 text-amber-400 font-semibold text-[11px]">
                         <span>👑</span> Super Admin
                       </span>
-                    ) : (
+                    ) : user?.role === "admin" ? (
                       <span className="flex items-center gap-1 text-sky-400 font-semibold text-[11px]">
-                        <span>⭐</span> {user?.role === "admin" ? "Admin" : "Manager"}
+                        <span>⭐</span> Admin
+                      </span>
+                    ) : user?.role === "sub_manager" ? (
+                      <span className="flex items-center gap-1 text-purple-400 font-semibold text-[11px]">
+                        <span>⭐</span> Manager
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-emerald-400 font-semibold text-[11px]">
+                        <span>👤</span> Flat Member
                       </span>
                     )}
+                    <span className="text-slate-400 text-[11px] font-mono border-l border-slate-700 pl-1.5">
+                      @{user?.username}
+                    </span>
                   </div>
 
                   {/* Logout Button */}
@@ -157,13 +168,26 @@ export default function Navbar() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={openLoginModal}
-                  className="btn btn-primary btn-sm text-xs font-semibold px-3 shadow-md shadow-sky-500/20 flex items-center gap-1"
-                >
-                  <span>🔐</span>
-                  <span className="hidden sm:inline">Login</span>
-                </button>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Sign In Button */}
+                  <button
+                    onClick={() => openLoginModal("signin")}
+                    className="btn btn-ghost btn-sm text-xs font-semibold px-2.5 sm:px-3 text-slate-300 hover:text-white border border-slate-700/80 hover:bg-slate-800 flex items-center gap-1"
+                  >
+                    <span>🔐</span>
+                    <span>Sign In</span>
+                  </button>
+
+                  {/* Sign Up / Join Flat Button */}
+                  <button
+                    onClick={() => openLoginModal("signup")}
+                    className="btn btn-primary btn-sm text-xs font-semibold px-2.5 sm:px-3 shadow-md shadow-sky-500/20 bg-gradient-to-r from-sky-500 to-purple-600 border-0 flex items-center gap-1"
+                  >
+                    <span>✍️</span>
+                    <span className="hidden sm:inline">Join Flat</span>
+                    <span className="sm:hidden">Join</span>
+                  </button>
+                </div>
               )}
 
               {/* Mobile Drawer Hamburger */}
@@ -271,8 +295,16 @@ export default function Navbar() {
                       <p className="text-xs font-semibold text-white truncate">
                         {user?.name || user?.username}
                       </p>
-                      <p className="text-[11px] text-sky-400 flex items-center gap-1 mt-0.5">
-                        {isSuperAdmin ? "👑 Super Admin" : "⭐ Manager"}
+                      <p className="text-[11px] font-medium flex items-center gap-1 mt-0.5">
+                        {isSuperAdmin ? (
+                          <span className="text-amber-400">👑 Super Admin</span>
+                        ) : user?.role === "admin" ? (
+                          <span className="text-sky-400">⭐ Admin</span>
+                        ) : user?.role === "sub_manager" ? (
+                          <span className="text-purple-400">⭐ Manager</span>
+                        ) : (
+                          <span className="text-emerald-400">👤 Flat Member</span>
+                        )}
                       </p>
                     </div>
                     <button
@@ -280,26 +312,39 @@ export default function Navbar() {
                         closeDrawer();
                         logout();
                       }}
-                      className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/20"
+                      className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/20 border border-rose-500/20"
                     >
                       Logout
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-slate-300 font-medium">Viewing as Guest</p>
-                      <p className="text-[10px] text-slate-500">Sign in for Admin controls</p>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-xs text-slate-200 font-semibold">Bachelor Flat Member</p>
+                        <p className="text-[10px] text-slate-400">Sign in or request flat access</p>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        closeDrawer();
-                        openLoginModal();
-                      }}
-                      className="btn btn-primary btn-xs"
-                    >
-                      Login
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          closeDrawer();
+                          openLoginModal("signin");
+                        }}
+                        className="btn btn-ghost btn-xs flex-1 border border-slate-700 text-slate-300"
+                      >
+                        🔐 Sign In
+                      </button>
+                      <button
+                        onClick={() => {
+                          closeDrawer();
+                          openLoginModal("signup");
+                        }}
+                        className="btn btn-primary btn-xs flex-1 bg-gradient-to-r from-sky-500 to-purple-600 border-0"
+                      >
+                        ✍️ Join Flat
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

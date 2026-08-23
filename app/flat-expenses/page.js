@@ -27,28 +27,33 @@ export default function FlatExpensesPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [expRes, membersRes] = await Promise.all([
+      const [expRes, membersRes] = await Promise.allSettled([
         fetch(`/api/flat-expenses?month=${selectedMonth}`),
         fetch("/api/members"),
       ]);
-      const expData = await expRes.json();
-      const membersData = await membersRes.json();
 
-      setMembers(Array.isArray(membersData) ? membersData : []);
+      if (membersRes.status === "fulfilled" && membersRes.value.ok) {
+        const membersData = await membersRes.value.json();
+        setMembers(Array.isArray(membersData) ? membersData : []);
+      }
 
       // Build map
       const map = {};
       CATEGORIES.forEach((c) => (map[c.key] = 0));
-      if (Array.isArray(expData)) {
-        expData.forEach((e) => {
-          map[e.category] = Number(e.amount) || 0;
-        });
+      if (expRes.status === "fulfilled" && expRes.value.ok) {
+        const expData = await expRes.value.json();
+        if (Array.isArray(expData)) {
+          expData.forEach((e) => {
+            map[e.category] = Number(e.amount) || 0;
+          });
+        }
       }
       setExpenses(map);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedMonth]);
 
   useEffect(() => {

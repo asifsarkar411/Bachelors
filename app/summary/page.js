@@ -14,12 +14,18 @@ export default function SummaryPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/summary?month=${selectedMonth}`);
-      const data = await res.json();
-      setSummary(data);
+      if (res.ok) {
+        const data = await res.json();
+        setSummary(data && !data.error ? data : null);
+      } else {
+        setSummary(null);
+      }
     } catch (err) {
       console.error(err);
+      setSummary(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedMonth]);
 
   useEffect(() => {

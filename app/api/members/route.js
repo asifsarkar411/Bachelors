@@ -55,11 +55,46 @@ export async function DELETE(request) {
     const db = await getDB();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-    // Soft delete - mark as inactive
+    const permanent = searchParams.get("permanent") === "true";
+
+    if (!id) {
+      return NextResponse.json({ error: "Member ID required" }, { status: 400 });
+    }
+
+    if (permanent) {
+      // Hard delete from members and linked user account
+      await db.collection("members").deleteOne({ _id: new ObjectId(id) });
+      try {
+        await db.collection("users").deleteMany({
+          $or: [{ memberId: id }, { memberId: new ObjectId(id) }],
+        });
+      } catch (e) {}
+
+      return NextResponse.json({
+        success: true,
+        message: "Member permanently deleted and access removed.",
+      });
+    }
+
+    // Soft delete - mark as inactive in members and users collection
     await db
       .collection("members")
-      .updateOne({ _id: new ObjectId(id) }, { $set: { active: false } });
-    return NextResponse.json({ success: true });
+      .updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { active: false, deactivatedAt: new Date() } }
+      );
+
+    try {
+      await db.collection("users").updateMany(
+        { $or: [{ memberId: id }, { memberId: new ObjectId(id) }] },
+        { $set: { active: false } }
+      );
+    } catch (e) {}
+
+    return NextResponse.json({
+      success: true,
+      message: "Member deactivated successfully.",
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

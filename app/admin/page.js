@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import AddMemberModal from "@/components/AddMemberModal";
 import { useAuth } from "@/context/AuthContext";
@@ -21,11 +21,17 @@ export default function AdminPage() {
 
   const [members, setMembers] = useState([]);
   const [managers, setManagers] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+
+  // Request processing states
+  const [processingRequestId, setProcessingRequestId] = useState(null);
+  const [requestActionMsg, setRequestActionMsg] = useState({ type: "", text: "" });
 
   // Sub-Manager assignment form state (for Super Admin)
   const [assignMemberId, setAssignMemberId] = useState("");
@@ -61,27 +67,144 @@ export default function AdminPage() {
     }
   }, [selectedMonth]);
 
-  async function fetchData() {
-    try {
-      const [membersRes, usersRes] = await Promise.all([
-        fetch("/api/members"),
-        fetch("/api/auth/users"),
-      ]);
-      const membersData = await membersRes.json();
-      const usersData = await usersRes.json();
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    setRefreshing(true);
 
-      setMembers(Array.isArray(membersData) ? membersData : []);
-      setManagers(Array.isArray(usersData) ? usersData : []);
+    const userRole = isSuperAdmin ? "super_admin" : user?.role || "";
+
+    try {
+      // Robust error-isolated fetching for each individual API
+      const [membersRes, usersRes, requestsRes] = await Promise.allSettled([
+        fetch("/api/members"),
+        fetch("/api/auth/users", {
+          headers: { "x-user-role": userRole },
+        }),
+        fetch("/api/admin/requests", {
+          headers: { "x-user-role": userRole },
+        }),
+      ]);
+
+      if (membersRes.status === "fulfilled" && membersRes.value.ok) {
+        try {
+          const membersData = await membersRes.value.json();
+          setMembers(Array.isArray(membersData) ? membersData : []);
+        } catch (e) {
+          console.warn("Failed to parse members data", e);
+        }
+      }
+
+      if (usersRes.status === "fulfilled" && usersRes.value.ok) {
+        try {
+          const usersData = await usersRes.value.json();
+          setManagers(Array.isArray(usersData) ? usersData : []);
+        } catch (e) {
+          console.warn("Failed to parse managers data", e);
+        }
+      }
+
+      if (requestsRes.status === "fulfilled" && requestsRes.value.ok) {
+        try {
+          const requestsData = await requestsRes.value.json();
+          setJoinRequests(Array.isArray(requestsData) ? requestsData : []);
+        } catch (e) {
+          console.warn("Failed to parse requests data", e);
+        }
+      }
     } catch (err) {
-      console.error("Error fetching data:", err);
+      console.error("Admin data loading error:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-  }
+  }, [isSuperAdmin, user]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
+  // Handle Approve Member Join Request
+  async function handleApproveRequest(reqItem) {
+    setProcessingRequestId(reqItem._id);
+    setRequestActionMsg({ type: "", text: "" });
+
+    try {
+      const res = await fetch("/api/admin/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": isSuperAdmin ? "super_admin" : user?.role || "",
+        },
+        body: JSON.stringify({
+          userId: reqItem._id,
+          action: "approve",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to approve member");
+      }
+
+      setRequestActionMsg({
+        type: "success",
+        text: `✅ Accepted! "${reqItem.name}" (@${reqItem.username}) is now an approved flat member and can add to the Bajar List.`,
+      });
+
+      // Optimistic update
+      setJoinRequests((prev) => prev.filter((r) => r._id !== reqItem._id));
+      fetchData(true);
+      refreshHistory();
+
+      setTimeout(() => setRequestActionMsg({ type: "", text: "" }), 6000);
+    } catch (err) {
+      setRequestActionMsg({ type: "error", text: `❌ ${err.message}` });
+    }
+    setProcessingRequestId(null);
+  }
+
+  // Handle Reject/Decline Member Join Request
+  async function handleDeclineRequest(reqItem) {
+    if (
+      !confirm(
+        `Are you sure you want to decline the join request from "${reqItem.name}" (@${reqItem.username})?`
+      )
+    )
+      return;
+
+    setProcessingRequestId(reqItem._id);
+    setRequestActionMsg({ type: "", text: "" });
+
+    try {
+      const res = await fetch(`/api/admin/requests?id=${reqItem._id}`, {
+        method: "DELETE",
+        headers: {
+          "x-user-role": isSuperAdmin ? "super_admin" : user?.role || "",
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to decline request");
+      }
+
+      setRequestActionMsg({
+        type: "success",
+        text: `🗑️ Join request from "${reqItem.name}" declined and removed.`,
+      });
+
+      // Optimistic update
+      setJoinRequests((prev) => prev.filter((r) => r._id !== reqItem._id));
+      fetchData(true);
+
+      setTimeout(() => setRequestActionMsg({ type: "", text: "" }), 5000);
+    } catch (err) {
+      setRequestActionMsg({ type: "error", text: `❌ ${err.message}` });
+    }
+    setProcessingRequestId(null);
+  }
+
+  // Add Member manually
   async function handleAddMember(data) {
     const res = await fetch("/api/members", {
       method: "POST",
@@ -89,21 +212,36 @@ export default function AdminPage() {
       body: JSON.stringify(data),
     });
     if (res.ok) {
-      fetchData();
+      fetchData(true);
       refreshHistory();
     }
   }
 
-  async function handleDeleteMember(id) {
-    if (
-      !confirm(
-        "Are you sure? This will deactivate the member but preserve historical calculation data."
-      )
-    )
-      return;
-    await fetch(`/api/members?id=${id}`, { method: "DELETE" });
-    fetchData();
-    refreshHistory();
+  // Super Admin: Remove Member (Soft or Permanent)
+  async function handleRemoveMember(id, memberName, isPermanent = false) {
+    const confirmPrompt = isPermanent
+      ? `⚠️ PERMANENT REMOVAL: Are you sure you want to completely delete "${memberName}"? This will permanently remove their member record and linked user account.`
+      : `Are you sure you want to deactivate "${memberName}"? This will disable their access but preserve calculation history.`;
+
+    if (!confirm(confirmPrompt)) return;
+
+    try {
+      const url = isPermanent
+        ? `/api/members?id=${id}&permanent=true`
+        : `/api/members?id=${id}`;
+
+      const res = await fetch(url, { method: "DELETE" });
+      const data = await res.json();
+
+      if (res.ok) {
+        fetchData(true);
+        refreshHistory();
+      } else {
+        alert(data.error || "Failed to remove member");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function startEdit(member) {
@@ -123,7 +261,7 @@ export default function AdminPage() {
       }),
     });
     setEditingMember(null);
-    fetchData();
+    fetchData(true);
   }
 
   // Super Admin: Assign a new Sub-Manager or Admin
@@ -163,7 +301,7 @@ export default function AdminPage() {
       setAssignUsername("");
       setAssignPassword("");
       setAssignMemberId("");
-      fetchData();
+      fetchData(true);
       setTimeout(() => setAssignMsg(""), 3500);
     } catch (err) {
       setAssignMsg(`❌ ${err.message}`);
@@ -183,7 +321,7 @@ export default function AdminPage() {
         },
       });
       if (res.ok) {
-        fetchData();
+        fetchData(true);
       } else {
         const err = await res.json();
         alert(err.error || "Failed to unassign");
@@ -289,7 +427,7 @@ export default function AdminPage() {
         type: "success",
         text: `✅ ${data.message}`,
       });
-      fetchData();
+      fetchData(true);
       refreshHistory();
       setTimeout(() => setResetMsg({ type: "", text: "" }), 5000);
     } catch (err) {
@@ -303,7 +441,7 @@ export default function AdminPage() {
     alert("Developer credit popup will show again on your next page refresh!");
   }
 
-  if (loading) return <LoadingSpinner text="Loading control panel..." />;
+  if (loading) return <LoadingSpinner text="Loading control panel items..." />;
 
   // If user is not logged in as Admin or Super Admin
   if (!isLoggedIn) {
@@ -315,10 +453,10 @@ export default function AdminPage() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Admin Protected</h2>
           <p className="text-sm text-slate-400 mb-6">
-            This control panel requires Manager or Super Admin credentials to access.
+            This control center requires Manager or Super Admin credentials to access.
           </p>
           <button
-            onClick={openLoginModal}
+            onClick={() => openLoginModal("signin")}
             className="btn btn-primary w-full shadow-lg shadow-sky-500/20 gap-2 font-semibold"
           >
             <span>🔐</span> Manager &amp; Super Admin Login
@@ -354,10 +492,12 @@ export default function AdminPage() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchData}
-            className="btn btn-ghost btn-sm text-slate-300 border border-slate-700 hover:bg-slate-800"
+            onClick={() => fetchData()}
+            disabled={refreshing}
+            className="btn btn-ghost btn-sm text-slate-300 border border-slate-700 hover:bg-slate-800 flex items-center gap-1.5"
           >
-            🔄 Refresh
+            <span className={refreshing ? "animate-spin" : ""}>🔄</span>
+            <span>{refreshing ? "Refreshing..." : "Refresh Items"}</span>
           </button>
           <button
             onClick={logout}
@@ -367,6 +507,128 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* ================= SUPER ADMIN FEATURE 1: PENDING MEMBER SIGN-UP REQUESTS ================= */}
+      {isSuperAdmin && (
+        <div className="glass-card p-5 sm:p-6 mb-8 border-purple-500/40 bg-gradient-to-br from-purple-950/30 via-slate-900/60 to-pink-950/20 animate-fade-in-up shadow-xl shadow-purple-500/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-purple-500/30">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">📬</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-purple-300">
+                    Pending Flat Member Join Requests
+                  </h2>
+                  <span
+                    className={`badge badge-sm font-bold ${
+                      joinRequests.length > 0
+                        ? "bg-purple-500/20 text-purple-300 border-purple-500/40 animate-pulse"
+                        : "bg-slate-800 text-slate-400 border-slate-700"
+                    }`}
+                  >
+                    {joinRequests.length} Pending
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Users who signed up from the Navbar. Accept them to grant Bajar adding access and flat membership.
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-auto px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold">
+              Super Admin Approval Required
+            </span>
+          </div>
+
+          {/* Action Message Feedback */}
+          {requestActionMsg.text && (
+            <div
+              className={`mb-4 p-3 rounded-xl text-xs font-medium animate-fade-in flex items-center gap-2 ${
+                requestActionMsg.type === "success"
+                  ? "bg-green-500/15 border border-green-500/30 text-green-300"
+                  : "bg-red-500/15 border border-red-500/30 text-red-400"
+              }`}
+            >
+              {requestActionMsg.text}
+            </div>
+          )}
+
+          {joinRequests.length === 0 ? (
+            <div className="text-center py-6 px-4 rounded-xl bg-base-100/30 border border-slate-800/80">
+              <span className="text-2xl block mb-1">✨</span>
+              <p className="text-xs text-slate-400">
+                No pending join requests right now. New sign-ups will appear here for your review and acceptance.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {joinRequests.map((req) => (
+                <div
+                  key={req._id}
+                  className="p-4 rounded-xl bg-base-100/60 border border-purple-500/20 flex flex-col justify-between hover:border-purple-500/40 transition-all shadow-md"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                          <span>👤</span> {req.name}
+                        </h3>
+                        <p className="text-xs text-purple-300 font-mono mt-0.5">
+                          @{req.username}
+                        </p>
+                      </div>
+                      <span className="badge badge-xs bg-amber-500/20 text-amber-300 border-amber-500/30">
+                        Pending
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-xs text-slate-400 mb-3 bg-base-200/40 p-2.5 rounded-lg border border-slate-800">
+                      <p>
+                        📱 <span className="text-slate-300 font-medium">{req.phone || "No phone provided"}</span>
+                      </p>
+                      {req.notes && (
+                        <p>
+                          🏷️ <span className="text-slate-300 italic">{req.notes}</span>
+                        </p>
+                      )}
+                      <p className="text-[11px] text-slate-500">
+                        🕒 Requested on:{" "}
+                        {new Date(req.createdAt).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Accept & Decline Actions */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
+                    <button
+                      onClick={() => handleApproveRequest(req)}
+                      disabled={processingRequestId === req._id}
+                      className="btn btn-success btn-xs flex-1 text-xs font-semibold gap-1 text-slate-950 shadow-md shadow-green-500/20"
+                    >
+                      {processingRequestId === req._id ? (
+                        <span className="loading loading-spinner loading-xs" />
+                      ) : (
+                        "✅ Accept & Add Member"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleDeclineRequest(req)}
+                      disabled={processingRequestId === req._id}
+                      className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/10 border border-rose-500/20"
+                      title="Decline request"
+                    >
+                      ❌ Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ACCOUNT & SECURITY SETTINGS: USERNAME AND PASSWORD CHANGE */}
       <div className="glass-card p-5 sm:p-6 mb-8 border-sky-500/30 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-sky-950/20 animate-fade-in-up">
@@ -489,7 +751,7 @@ export default function AdminPage() {
         </form>
       </div>
 
-      {/* SUPER ADMIN EXCLUSIVE SECTION 1: Manager & Sub-Manager Assignment */}
+      {/* SUPER ADMIN EXCLUSIVE SECTION: Manager & Sub-Manager Assignment */}
       {isSuperAdmin && (
         <div className="glass-card p-5 sm:p-6 mb-8 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-slate-900/40 to-purple-500/5 animate-fade-in-up">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/60">
@@ -530,7 +792,7 @@ export default function AdminPage() {
                       setAssignUsername(sel.name.toLowerCase().replace(/\s+/g, ""));
                     }
                   }}
-                  className="select select-bordered select-sm w-full bg-base-100/60 border-slate-700 text-xs"
+                  className="select select-bordered select-sm w-full bg-base-100/60 border-slate-700 text-xs text-white"
                 >
                   <option value="">Custom User (No Link)</option>
                   {members.map((m) => (
@@ -584,7 +846,7 @@ export default function AdminPage() {
                   <select
                     value={assignRole}
                     onChange={(e) => setAssignRole(e.target.value)}
-                    className="select select-bordered select-sm w-full bg-base-100/60 border-slate-700 text-xs"
+                    className="select select-bordered select-sm w-full bg-base-100/60 border-slate-700 text-xs text-white"
                   >
                     <option value="sub_manager">Sub Manager</option>
                     <option value="admin">Admin</option>
@@ -594,7 +856,7 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={assigning}
-                  className="btn btn-warning btn-sm text-xs font-semibold px-4"
+                  className="btn btn-warning btn-sm text-xs font-semibold px-4 text-slate-950"
                 >
                   {assigning ? <span className="loading loading-spinner loading-xs" /> : "Assign"}
                 </button>
@@ -653,7 +915,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* SUPER ADMIN EXCLUSIVE SECTION 2: MONTH-WISE DATA RESET */}
+      {/* SUPER ADMIN EXCLUSIVE SECTION: MONTH-WISE DATA RESET */}
       {isSuperAdmin && (
         <div className="glass-card p-5 sm:p-6 mb-8 border-rose-500/30 bg-gradient-to-br from-rose-500/5 via-slate-900/40 to-amber-500/5 animate-fade-in-up">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-700/60">
@@ -822,9 +1084,14 @@ export default function AdminPage() {
         {/* Members Management (2 cols) */}
         <div className="lg:col-span-2 glass-card p-5 sm:p-6 animate-fade-in-up">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/60">
-            <h2 className="font-semibold text-white flex items-center gap-2 text-base">
-              <span>👥</span> Manage Flat Members ({members.length})
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-white flex items-center gap-2 text-base">
+                <span>👥</span> Manage Flat Members
+              </h2>
+              <span className="badge badge-sm bg-sky-500/15 text-sky-300 border-sky-500/30 font-bold">
+                {members.length} Active
+              </span>
+            </div>
             <button
               onClick={() => setShowAddMember(true)}
               className="btn btn-primary btn-sm gap-1 text-xs"
@@ -835,7 +1102,7 @@ export default function AdminPage() {
 
           {members.length === 0 ? (
             <p className="text-sm text-slate-500 text-center py-10">
-              No members added yet. Click &quot;+ Add Member&quot; to begin.
+              No active members found. Click &quot;+ Add Member&quot; or accept pending sign-ups above.
             </p>
           ) : (
             <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
@@ -893,6 +1160,11 @@ export default function AdminPage() {
                                 {m.role}
                               </span>
                             )}
+                            {m.username && (
+                              <span className="text-[11px] font-mono text-slate-400">
+                                @{m.username}
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">
                             {m.phone ? `📱 ${m.phone}` : "No phone number"} • Member #{i + 1}
@@ -900,6 +1172,7 @@ export default function AdminPage() {
                         </div>
                       </div>
 
+                      {/* Member Actions */}
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => startEdit(m)}
@@ -908,13 +1181,24 @@ export default function AdminPage() {
                         >
                           ✏️ Edit
                         </button>
+
+                        {/* Super Admin can remove / deactivate member */}
                         <button
-                          onClick={() => handleDeleteMember(m._id)}
-                          className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/10"
+                          onClick={() => handleRemoveMember(m._id, m.name, false)}
+                          className="btn btn-ghost btn-xs text-amber-400 hover:bg-amber-500/10"
                           title="Deactivate member"
                         >
-                          🗑️
+                          ⏸️
                         </button>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleRemoveMember(m._id, m.name, true)}
+                            className="btn btn-ghost btn-xs text-rose-400 hover:bg-rose-500/10"
+                            title="Permanently remove member"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -933,21 +1217,25 @@ export default function AdminPage() {
             </h2>
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between p-2.5 bg-base-100/40 rounded-lg">
-                <span className="text-slate-400">Total Active Members</span>
+                <span className="text-slate-400">Active Flat Members</span>
                 <span className="font-bold text-sky-400">{members.length}</span>
               </div>
               <div className="flex items-center justify-between p-2.5 bg-base-100/40 rounded-lg">
+                <span className="text-slate-400">Pending Join Requests</span>
+                <span className="font-bold text-purple-400">{joinRequests.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 bg-base-100/40 rounded-lg">
                 <span className="text-slate-400">Sub-Managers</span>
-                <span className="font-bold text-purple-400">{managers.length}</span>
+                <span className="font-bold text-pink-400">{managers.length}</span>
               </div>
               <div className="flex items-center justify-between p-2.5 bg-base-100/40 rounded-lg">
                 <span className="text-slate-400">Database</span>
                 <span className="badge badge-xs bg-green-500/15 text-green-300 border-green-500/30">
-                  MongoDB Atlas
+                  MongoDB Connected
                 </span>
               </div>
               <div className="flex items-center justify-between p-2.5 bg-base-100/40 rounded-lg">
-                <span className="text-slate-400">Active Account</span>
+                <span className="text-slate-400">Active Session</span>
                 <span className="font-mono text-amber-300 font-bold">@{user?.username}</span>
               </div>
             </div>
@@ -956,20 +1244,20 @@ export default function AdminPage() {
           {/* Quick Utility Actions */}
           <div className="glass-card p-5 animate-fade-in-up">
             <h2 className="font-semibold text-white mb-3 flex items-center gap-2 text-sm">
-              <span>🔧</span> Controls &amp; Reset
+              <span>🔧</span> Controls &amp; Utilities
             </h2>
             <div className="space-y-2">
+              <button
+                onClick={() => fetchData()}
+                className="btn btn-ghost btn-sm w-full justify-start gap-2 text-slate-300 text-xs border border-slate-700/60"
+              >
+                <span>🔄</span> Refresh All Data Items
+              </button>
               <button
                 onClick={handleResetPopup}
                 className="btn btn-ghost btn-sm w-full justify-start gap-2 text-slate-300 text-xs border border-slate-700/60"
               >
-                <span>🔄</span> Reset Developer Popup
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn btn-ghost btn-sm w-full justify-start gap-2 text-slate-300 text-xs border border-slate-700/60"
-              >
-                <span>♻️</span> Refresh Application
+                <span>💫</span> Reset Developer Popup
               </button>
             </div>
           </div>

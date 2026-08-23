@@ -67,18 +67,25 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [membersRes, summaryRes] = await Promise.all([
+      const [membersRes, summaryRes] = await Promise.allSettled([
         fetch("/api/members"),
         fetch(`/api/summary?month=${selectedMonth}`),
       ]);
-      const membersData = await membersRes.json();
-      const summaryData = await summaryRes.json();
-      setMembers(Array.isArray(membersData) ? membersData : []);
-      setSummary(summaryData);
+
+      if (membersRes.status === "fulfilled" && membersRes.value.ok) {
+        const membersData = await membersRes.value.json();
+        setMembers(Array.isArray(membersData) ? membersData : []);
+      }
+
+      if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
+        const summaryData = await summaryRes.value.json();
+        setSummary(summaryData && !summaryData.error ? summaryData : null);
+      }
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedMonth]);
 
   useEffect(() => {

@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState("signin"); // "signin" | "signup"
 
   useEffect(() => {
     try {
@@ -46,6 +47,25 @@ export function AuthProvider({ children }) {
     }
   }
 
+  async function register(formData) {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Sign-up failed");
+      }
+
+      return { success: true, message: data.message };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
   function updateUserSession(updatedUserData) {
     setUser(updatedUserData);
     try {
@@ -62,10 +82,26 @@ export function AuthProvider({ children }) {
     user?.role === "super_admin" || user?.username?.toLowerCase() === "asif";
   const isAdmin = isSuperAdmin || user?.role === "admin";
   const isSubManager = user?.role === "sub_manager";
+  const isMember = user?.role === "member";
+  const isApprovedMember =
+    user?.status === "approved" || isMember || isSuperAdmin || isAdmin || isSubManager;
   const isAdminOrManager = isSuperAdmin || isAdmin || isSubManager;
 
   // STRICT REQUIREMENT: Only Admin and Super Admin can add member and edit meal
   const canManageMembersAndMeals = isSuperAdmin || isAdmin;
+
+  // STRICT REQUIREMENT: Only approved flat members, managers, and Super Admin can add to Bajar list
+  const canAddBajar = !!user && (isSuperAdmin || isAdmin || isSubManager || user?.status === "approved" || isMember);
+
+  function openLoginModal(tab = "signin") {
+    setAuthModalTab(tab);
+    setIsLoginModalOpen(true);
+  }
+
+  function openSignUpModal() {
+    setAuthModalTab("signup");
+    setIsLoginModalOpen(true);
+  }
 
   return (
     <AuthContext.Provider
@@ -76,14 +112,21 @@ export function AuthProvider({ children }) {
         isSuperAdmin,
         isAdmin,
         isSubManager,
+        isMember,
+        isApprovedMember,
         isAdminOrManager,
         canManageMembersAndMeals,
+        canAddBajar,
         login,
+        register,
         logout,
         updateUserSession,
         isLoginModalOpen,
         setIsLoginModalOpen,
-        openLoginModal: () => setIsLoginModalOpen(true),
+        authModalTab,
+        setAuthModalTab,
+        openLoginModal,
+        openSignUpModal,
         closeLoginModal: () => setIsLoginModalOpen(false),
       }}
     >

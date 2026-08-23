@@ -25,30 +25,35 @@ export default function MealsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [membersRes, mealsRes] = await Promise.all([
+      const [membersRes, mealsRes] = await Promise.allSettled([
         fetch("/api/members"),
         fetch(`/api/meals?month=${selectedMonth}`),
       ]);
-      const membersData = await membersRes.json();
-      const mealsData = await mealsRes.json();
 
-      setMembers(Array.isArray(membersData) ? membersData : []);
+      if (membersRes.status === "fulfilled" && membersRes.value.ok) {
+        const membersData = await membersRes.value.json();
+        setMembers(Array.isArray(membersData) ? membersData : []);
+      }
 
       // Build meals lookup: { "date_memberId": { dayMeal, nightMeal } }
       const mealsMap = {};
-      if (Array.isArray(mealsData)) {
-        mealsData.forEach((ml) => {
-          mealsMap[`${ml.date}_${ml.memberId}`] = {
-            dayMeal: ml.dayMeal || 0,
-            nightMeal: ml.nightMeal || 0,
-          };
-        });
+      if (mealsRes.status === "fulfilled" && mealsRes.value.ok) {
+        const mealsData = await mealsRes.value.json();
+        if (Array.isArray(mealsData)) {
+          mealsData.forEach((ml) => {
+            mealsMap[`${ml.date}_${ml.memberId}`] = {
+              dayMeal: ml.dayMeal || 0,
+              nightMeal: ml.nightMeal || 0,
+            };
+          });
+        }
       }
       setMeals(mealsMap);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedMonth]);
 
   useEffect(() => {

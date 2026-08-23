@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import AddMemberModal from "@/components/AddMemberModal";
 import { useAuth } from "@/context/AuthContext";
+import { useMonth } from "@/context/MonthContext";
+import { getMonthName } from "@/lib/utils";
 
 export default function AdminPage() {
   const {
@@ -14,6 +16,8 @@ export default function AdminPage() {
     logout,
     updateUserSession,
   } = useAuth();
+
+  const { selectedMonth, refreshHistory } = useMonth();
 
   const [members, setMembers] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -40,11 +44,22 @@ export default function AdminPage() {
   const [updatingSettings, setUpdatingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState({ type: "", text: "" });
 
+  // Data Reset State (Super Admin Only)
+  const [resetTargetMonth, setResetTargetMonth] = useState(selectedMonth);
+  const [resetting, setResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState({ type: "", text: "" });
+
   useEffect(() => {
     if (user?.username) {
       setNewUsername(user.username);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (selectedMonth) {
+      setResetTargetMonth(selectedMonth);
+    }
+  }, [selectedMonth]);
 
   async function fetchData() {
     try {
@@ -73,7 +88,10 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    if (res.ok) fetchData();
+    if (res.ok) {
+      fetchData();
+      refreshHistory();
+    }
   }
 
   async function handleDeleteMember(id) {
@@ -85,6 +103,7 @@ export default function AdminPage() {
       return;
     await fetch(`/api/members?id=${id}`, { method: "DELETE" });
     fetchData();
+    refreshHistory();
   }
 
   function startEdit(member) {
@@ -233,6 +252,50 @@ export default function AdminPage() {
       setSettingsMsg({ type: "error", text: `❌ ${err.message}` });
     }
     setUpdatingSettings(false);
+  }
+
+  // Super Admin: Reset Data (Month-Wise or Complete)
+  async function handleResetData(action, actionLabel) {
+    if (!isSuperAdmin) {
+      alert("Only Super Admin can reset data.");
+      return;
+    }
+
+    const confirmMsg = `⚠️ WARNING: Are you sure you want to ${actionLabel} for "${getMonthName(resetTargetMonth)}" (${resetTargetMonth})?\n\nThis will permanently delete records for this month and cannot be undone.`;
+    if (!confirm(confirmMsg)) return;
+
+    setResetting(true);
+    setResetMsg({ type: "", text: "" });
+
+    try {
+      const res = await fetch("/api/admin/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": "super_admin",
+        },
+        body: JSON.stringify({
+          action,
+          month: resetTargetMonth,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reset data");
+      }
+
+      setResetMsg({
+        type: "success",
+        text: `✅ ${data.message}`,
+      });
+      fetchData();
+      refreshHistory();
+      setTimeout(() => setResetMsg({ type: "", text: "" }), 5000);
+    } catch (err) {
+      setResetMsg({ type: "error", text: `❌ ${err.message}` });
+    }
+    setResetting(false);
   }
 
   function handleResetPopup() {
@@ -426,7 +489,7 @@ export default function AdminPage() {
         </form>
       </div>
 
-      {/* SUPER ADMIN EXCLUSIVE SECTION: Manager & Sub-Manager Assignment */}
+      {/* SUPER ADMIN EXCLUSIVE SECTION 1: Manager & Sub-Manager Assignment */}
       {isSuperAdmin && (
         <div className="glass-card p-5 sm:p-6 mb-8 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-slate-900/40 to-purple-500/5 animate-fade-in-up">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/60">
@@ -586,6 +649,170 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* SUPER ADMIN EXCLUSIVE SECTION 2: MONTH-WISE DATA RESET */}
+      {isSuperAdmin && (
+        <div className="glass-card p-5 sm:p-6 mb-8 border-rose-500/30 bg-gradient-to-br from-rose-500/5 via-slate-900/40 to-amber-500/5 animate-fade-in-up">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-700/60">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">🗑️</span>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-rose-300">
+                  Month-Wise Data Reset Center
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Super Admin authority to clear or reset meals, bajar lists, and flat expenses month-wise
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-auto px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+              Super Admin Only
+            </span>
+          </div>
+
+          {/* Target Month Selector */}
+          <div className="bg-base-100/50 p-4 rounded-xl border border-slate-700/60 mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 block mb-1">
+                  Target Month for Reset:
+                </label>
+                <p className="text-xs text-slate-400">
+                  Selected Target: <span className="font-bold text-sky-300">{getMonthName(resetTargetMonth)}</span> ({resetTargetMonth})
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="month"
+                  value={resetTargetMonth}
+                  onChange={(e) => setResetTargetMonth(e.target.value)}
+                  className="input input-bordered input-sm bg-base-200 border-slate-700 text-xs font-bold text-sky-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => setResetTargetMonth(selectedMonth)}
+                  className="btn btn-ghost btn-xs text-slate-300 border border-slate-700"
+                >
+                  Active Month
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Reset Feedback Message */}
+          {resetMsg.text && (
+            <div
+              className={`mb-4 p-3 rounded-xl text-xs font-medium text-center animate-fade-in ${
+                resetMsg.type === "success"
+                  ? "bg-green-500/10 border border-green-500/30 text-green-300"
+                  : "bg-red-500/10 border border-red-500/30 text-red-400"
+              }`}
+            >
+              {resetMsg.text}
+            </div>
+          )}
+
+          {/* Action Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* 1. Reset Meals */}
+            <div className="p-4 rounded-xl bg-base-100/40 border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition-all">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xl">🍽️</span>
+                  <h3 className="text-xs font-bold text-white">Reset Meals</h3>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Clears all Day &amp; Night meals for {getMonthName(resetTargetMonth)}.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  handleResetData("reset_meals_month", "Reset All Meals")
+                }
+                disabled={resetting}
+                className="btn btn-outline btn-warning btn-xs w-full text-xs font-semibold"
+              >
+                Reset Meals ({resetTargetMonth})
+              </button>
+            </div>
+
+            {/* 2. Reset Bajar List */}
+            <div className="p-4 rounded-xl bg-base-100/40 border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition-all">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xl">🛒</span>
+                  <h3 className="text-xs font-bold text-white">Reset Bajar List</h3>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Clears all market/bajar expense entries for {getMonthName(resetTargetMonth)}.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  handleResetData("reset_bajar_month", "Reset Bajar List")
+                }
+                disabled={resetting}
+                className="btn btn-outline btn-warning btn-xs w-full text-xs font-semibold"
+              >
+                Reset Bajar ({resetTargetMonth})
+              </button>
+            </div>
+
+            {/* 3. Reset Flat Expenses */}
+            <div className="p-4 rounded-xl bg-base-100/40 border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition-all">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xl">🏢</span>
+                  <h3 className="text-xs font-bold text-white">Reset Flat Expenses</h3>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Clears all utility bills &amp; rent for {getMonthName(resetTargetMonth)}.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  handleResetData(
+                    "reset_flat_expenses_month",
+                    "Reset Flat Expenses"
+                  )
+                }
+                disabled={resetting}
+                className="btn btn-outline btn-warning btn-xs w-full text-xs font-semibold"
+              >
+                Reset Flat Bills ({resetTargetMonth})
+              </button>
+            </div>
+
+            {/* 4. Complete Month Reset */}
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex flex-col justify-between hover:border-rose-500/50 transition-all">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xl">⚠️</span>
+                  <h3 className="text-xs font-bold text-rose-300">
+                    Reset All for Month
+                  </h3>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Cleans meals, bajar, and flat bills for {getMonthName(resetTargetMonth)}.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  handleResetData(
+                    "reset_all_month",
+                    "Reset All Data (Meals + Bajar + Bills)"
+                  )
+                }
+                disabled={resetting}
+                className="btn btn-error btn-xs w-full text-xs font-semibold text-white shadow-md shadow-rose-500/20"
+              >
+                Reset All ({resetTargetMonth})
+              </button>
+            </div>
           </div>
         </div>
       )}

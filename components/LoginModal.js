@@ -32,12 +32,6 @@ export default function LoginModal() {
     setLoading(false);
   }
 
-  function handleFillSuperAdmin() {
-    setUsername("asif");
-    setPassword("Asif@123");
-    setError("");
-  }
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain animate-fade-in">
       {/* Backdrop */}
@@ -84,10 +78,11 @@ export default function LoginModal() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. asif"
+              placeholder="Enter username"
               className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
               autoComplete="username"
               autoCapitalize="none"
+              autoCorrect="off"
               required
             />
           </div>
@@ -128,18 +123,6 @@ export default function LoginModal() {
             )}
           </button>
         </form>
-
-        {/* Quick hint badge for Super Admin */}
-        <div className="mt-5 pt-3 border-t border-slate-800/80 text-center">
-          <p className="text-[11px] text-slate-400 mb-1.5">Super Admin Access:</p>
-          <button
-            type="button"
-            onClick={handleFillSuperAdmin}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs hover:bg-sky-500/20 transition cursor-pointer"
-          >
-            <span>👑</span> Auto-Fill Super Admin (asif)
-          </button>
-        </div>
       </div>
     </div>
   );

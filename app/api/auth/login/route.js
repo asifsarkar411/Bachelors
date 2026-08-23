@@ -1,7 +1,7 @@
 import { getDB } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 
-export const SUPER_ADMIN = {
+export const DEFAULT_SUPER_ADMIN = {
   username: "asif",
   password: "Asif@123",
   name: "SM FERDOUS AHMMED (ASIF)",
@@ -20,23 +20,68 @@ export async function POST(request) {
     }
 
     const cleanUser = username.trim().toLowerCase();
+    const db = await getDB();
 
-    // Check fixed Super Admin
-    if (cleanUser === SUPER_ADMIN.username.toLowerCase() && password === SUPER_ADMIN.password) {
-      return NextResponse.json({
-        success: true,
-        user: {
-          username: SUPER_ADMIN.username,
-          name: SUPER_ADMIN.name,
-          role: SUPER_ADMIN.role,
-          isSuperAdmin: true,
-        },
-      });
+    // 1. Check custom Super Admin credentials in settings
+    try {
+      const superAdminSetting = await db
+        .collection("settings")
+        .findOne({ key: "super_admin_credentials" });
+
+      if (superAdminSetting && superAdminSetting.value) {
+        const storedAdmin = superAdminSetting.value;
+        if (
+          cleanUser === storedAdmin.username.toLowerCase() &&
+          password === storedAdmin.password
+        ) {
+          return NextResponse.json({
+            success: true,
+            user: {
+              username: storedAdmin.username,
+              name: storedAdmin.name || DEFAULT_SUPER_ADMIN.name,
+              role: "super_admin",
+              isSuperAdmin: true,
+            },
+          });
+        }
+      } else {
+        // Fallback to default super admin
+        if (
+          cleanUser === DEFAULT_SUPER_ADMIN.username.toLowerCase() &&
+          password === DEFAULT_SUPER_ADMIN.password
+        ) {
+          return NextResponse.json({
+            success: true,
+            user: {
+              username: DEFAULT_SUPER_ADMIN.username,
+              name: DEFAULT_SUPER_ADMIN.name,
+              role: DEFAULT_SUPER_ADMIN.role,
+              isSuperAdmin: true,
+            },
+          });
+        }
+      }
+    } catch (dbErr) {
+      console.warn("DB settings query warning:", dbErr.message);
+      // In case of DB query error, allow default super admin login
+      if (
+        cleanUser === DEFAULT_SUPER_ADMIN.username.toLowerCase() &&
+        password === DEFAULT_SUPER_ADMIN.password
+      ) {
+        return NextResponse.json({
+          success: true,
+          user: {
+            username: DEFAULT_SUPER_ADMIN.username,
+            name: DEFAULT_SUPER_ADMIN.name,
+            role: DEFAULT_SUPER_ADMIN.role,
+            isSuperAdmin: true,
+          },
+        });
+      }
     }
 
-    // Check custom assigned admins / sub-managers in database
+    // 2. Check custom assigned admins / sub-managers in users collection
     try {
-      const db = await getDB();
       const user = await db.collection("users").findOne({
         username: cleanUser,
         password: password,

@@ -5,8 +5,15 @@ import AddMemberModal from "@/components/AddMemberModal";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
-  const { user, isLoggedIn, isSuperAdmin, isAdminOrManager, openLoginModal, logout } =
-    useAuth();
+  const {
+    user,
+    isLoggedIn,
+    isSuperAdmin,
+    isAdminOrManager,
+    openLoginModal,
+    logout,
+    updateUserSession,
+  } = useAuth();
 
   const [members, setMembers] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -23,6 +30,21 @@ export default function AdminPage() {
   const [assignRole, setAssignRole] = useState("sub_manager");
   const [assigning, setAssigning] = useState(false);
   const [assignMsg, setAssignMsg] = useState("");
+
+  // Account Settings: Username and Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newUsername, setNewUsername] = useState(user?.username || "");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [updatingSettings, setUpdatingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState({ type: "", text: "" });
+
+  useEffect(() => {
+    if (user?.username) {
+      setNewUsername(user.username);
+    }
+  }, [user]);
 
   async function fetchData() {
     try {
@@ -152,6 +174,67 @@ export default function AdminPage() {
     }
   }
 
+  // Settings: Change Username and Password
+  async function handleChangeCredentials(e) {
+    e.preventDefault();
+    setSettingsMsg({ type: "", text: "" });
+
+    if (!currentPassword) {
+      setSettingsMsg({ type: "error", text: "Current password is required." });
+      return;
+    }
+
+    if (!newUsername.trim()) {
+      setSettingsMsg({ type: "error", text: "New username cannot be empty." });
+      return;
+    }
+
+    if (newPassword && newPassword !== confirmPassword) {
+      setSettingsMsg({
+        type: "error",
+        text: "New passwords do not match. Please verify.",
+      });
+      return;
+    }
+
+    setUpdatingSettings(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentUsername: user?.username,
+          currentPassword,
+          newUsername: newUsername.trim(),
+          newPassword: newPassword || currentPassword,
+          role: user?.role || (isSuperAdmin ? "super_admin" : "sub_manager"),
+          userId: user?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update credentials");
+      }
+
+      setSettingsMsg({
+        type: "success",
+        text: "✅ Login credentials updated successfully!",
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+      // Update frontend session
+      if (data.user) {
+        updateUserSession(data.user);
+      }
+    } catch (err) {
+      setSettingsMsg({ type: "error", text: `❌ ${err.message}` });
+    }
+    setUpdatingSettings(false);
+  }
+
   function handleResetPopup() {
     localStorage.removeItem("bf_visited");
     alert("Developer credit popup will show again on your next page refresh!");
@@ -163,7 +246,7 @@ export default function AdminPage() {
   if (!isLoggedIn) {
     return (
       <div className="page-container flex items-center justify-center min-h-[70vh]">
-        <div className="glass-card !border-sky-500/30 p-8 max-w-md w-full text-center animate-scale-in">
+        <div className="glass-card !border-sky-500/30 p-8 max-w-md w-full text-center animate-scale-in shadow-2xl">
           <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-sky-500/20">
             <span className="text-3xl">🔒</span>
           </div>
@@ -173,9 +256,9 @@ export default function AdminPage() {
           </p>
           <button
             onClick={openLoginModal}
-            className="btn btn-primary w-full shadow-lg shadow-sky-500/20 gap-2"
+            className="btn btn-primary w-full shadow-lg shadow-sky-500/20 gap-2 font-semibold"
           >
-            <span>🔐</span> Manager & Super Admin Login
+            <span>🔐</span> Manager &amp; Super Admin Login
           </button>
         </div>
       </div>
@@ -183,13 +266,13 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container pb-20">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
-              ⚙️ Admin & Control Center
+              ⚙️ Admin &amp; Control Center
             </h1>
             {isSuperAdmin ? (
               <span className="badge badge-sm bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold">
@@ -197,12 +280,12 @@ export default function AdminPage() {
               </span>
             ) : (
               <span className="badge badge-sm bg-sky-500/20 text-sky-300 border-sky-500/40 font-bold">
-                ⭐ Sub Manager
+                ⭐ {user?.role === "admin" ? "Admin" : "Sub Manager"}
               </span>
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Logged in as <span className="text-white font-semibold">{user?.name || user?.username}</span>
+            Logged in as <span className="text-white font-semibold">{user?.name || user?.username}</span> (@{user?.username})
           </p>
         </div>
 
@@ -222,6 +305,127 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* ACCOUNT & SECURITY SETTINGS: USERNAME AND PASSWORD CHANGE */}
+      <div className="glass-card p-5 sm:p-6 mb-8 border-sky-500/30 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-sky-950/20 animate-fade-in-up">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/60">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">🔐</span>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-white">
+                Account Settings: Change Login Credentials
+              </h2>
+              <p className="text-xs text-slate-400">
+                Update your login username and password for{" "}
+                <span className="text-sky-300 font-semibold font-mono">
+                  @{user?.username}
+                </span>{" "}
+                ({isSuperAdmin ? "Super Admin" : user?.role || "Manager"})
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPasswords(!showPasswords)}
+            className="text-xs text-sky-400 hover:underline cursor-pointer"
+          >
+            {showPasswords ? "Hide Passwords" : "Show Passwords"}
+          </button>
+        </div>
+
+        {/* Feedback Message */}
+        {settingsMsg.text && (
+          <div
+            className={`mb-4 p-3 rounded-xl text-xs font-medium ${
+              settingsMsg.type === "success"
+                ? "bg-green-500/10 border border-green-500/30 text-green-300"
+                : "bg-red-500/10 border border-red-500/30 text-red-400"
+            }`}
+          >
+            {settingsMsg.text}
+          </div>
+        )}
+
+        <form onSubmit={handleChangeCredentials} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Current Password */}
+            <div>
+              <label className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider block mb-1">
+                Current Password *
+              </label>
+              <input
+                type={showPasswords ? "text" : "password"}
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
+                required
+              />
+            </div>
+
+            {/* New Username */}
+            <div>
+              <label className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider block mb-1">
+                New Username *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. asif or manager1"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
+                autoCapitalize="none"
+                autoCorrect="off"
+                required
+              />
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider block mb-1">
+                New Password *
+              </label>
+              <input
+                type={showPasswords ? "text" : "password"}
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
+                required
+              />
+            </div>
+
+            {/* Confirm New Password */}
+            <div>
+              <label className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider block mb-1">
+                Confirm New Password *
+              </label>
+              <input
+                type={showPasswords ? "text" : "password"}
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="input input-bordered input-sm w-full bg-base-100/70 border-slate-700 focus:border-sky-500 text-xs sm:text-sm text-white"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end pt-1">
+            <button
+              type="submit"
+              disabled={updatingSettings}
+              className="btn btn-primary btn-sm px-6 font-semibold shadow-md shadow-sky-500/20 text-xs sm:text-sm"
+            >
+              {updatingSettings ? (
+                <span className="loading loading-spinner loading-xs" />
+              ) : (
+                "💾 Save New Credentials"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* SUPER ADMIN EXCLUSIVE SECTION: Manager & Sub-Manager Assignment */}
       {isSuperAdmin && (
         <div className="glass-card p-5 sm:p-6 mb-8 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-slate-900/40 to-purple-500/5 animate-fade-in-up">
@@ -229,11 +433,11 @@ export default function AdminPage() {
             <div className="flex items-center gap-2.5">
               <span className="text-2xl">👑</span>
               <div>
-                <h2 className="text-lg font-bold text-amber-300">
+                <h2 className="text-base sm:text-lg font-bold text-amber-300">
                   Super Admin Controls: Sub-Manager Assignment
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Fixed Super Admin: <span className="text-white font-mono font-semibold">asif</span> (Permanent Authority)
+                  Assign or unassign sub-managers and admins who can control operational records
                 </p>
               </div>
             </div>
@@ -342,7 +546,7 @@ export default function AdminPage() {
           {/* List of Active Assigned Sub-Managers */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-1.5">
-              <span>📋</span> Active Assigned Managers & Admins ({managers.length})
+              <span>📋</span> Active Assigned Managers &amp; Admins ({managers.length})
             </h3>
 
             {managers.length === 0 ? (
@@ -420,14 +624,14 @@ export default function AdminPage() {
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="input input-bordered input-sm bg-base-100/60 border-slate-700 text-xs"
+                          className="input input-bordered input-sm bg-base-100/60 border-slate-700 text-xs text-white"
                           placeholder="Member Name"
                         />
                         <input
                           type="text"
                           value={editPhone}
                           onChange={(e) => setEditPhone(e.target.value)}
-                          className="input input-bordered input-sm bg-base-100/60 border-slate-700 text-xs"
+                          className="input input-bordered input-sm bg-base-100/60 border-slate-700 text-xs text-white"
                           placeholder="Phone Number"
                         />
                       </div>
@@ -516,8 +720,8 @@ export default function AdminPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between p-2.5 bg-base-100/40 rounded-lg">
-                <span className="text-slate-400">Fixed Super Admin</span>
-                <span className="font-mono text-amber-300 font-bold">asif</span>
+                <span className="text-slate-400">Active Account</span>
+                <span className="font-mono text-amber-300 font-bold">@{user?.username}</span>
               </div>
             </div>
           </div>
@@ -525,7 +729,7 @@ export default function AdminPage() {
           {/* Quick Utility Actions */}
           <div className="glass-card p-5 animate-fade-in-up">
             <h2 className="font-semibold text-white mb-3 flex items-center gap-2 text-sm">
-              <span>🔧</span> Controls & Reset
+              <span>🔧</span> Controls &amp; Reset
             </h2>
             <div className="space-y-2">
               <button

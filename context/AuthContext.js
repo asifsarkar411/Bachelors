@@ -46,6 +46,13 @@ export function AuthProvider({ children }) {
     }
   }
 
+  function updateUserSession(updatedUserData) {
+    setUser(updatedUserData);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserData));
+    } catch (e) {}
+  }
+
   function logout() {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -73,6 +80,7 @@ export function AuthProvider({ children }) {
         canManageMembersAndMeals,
         login,
         logout,
+        updateUserSession,
         isLoginModalOpen,
         setIsLoginModalOpen,
         openLoginModal: () => setIsLoginModalOpen(true),

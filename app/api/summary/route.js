@@ -51,6 +51,7 @@ export async function GET(request) {
       return {
         memberId,
         name: member.name,
+        phone: member.phone || "",
         totalMeals,
         totalBajar,
       };
@@ -58,13 +59,30 @@ export async function GET(request) {
     
     const grandTotalMeals = memberStats.reduce((sum, m) => sum + m.totalMeals, 0);
     const mealRate = grandTotalMeals > 0 ? totalCost / grandTotalMeals : 0;
+    const roundedMealRate = Math.round(mealRate * 100) / 100;
     
-    // Calculate meal cost for each member
+    // Calculate meal cost and balance for each member
+    let totalReturn = 0;
+    let totalDue = 0;
+
     const memberSummary = memberStats.map((m) => {
-      const mealCost = m.totalMeals * mealRate;
+      const mealCost = Math.round(m.totalMeals * roundedMealRate * 100) / 100;
+      const balance = Math.round((m.totalBajar - mealCost) * 100) / 100;
+      
+      const returnAmount = balance > 0 ? balance : 0;
+      const dueAmount = balance < 0 ? Math.abs(balance) : 0;
+      const status = balance > 0 ? "return" : balance < 0 ? "due" : "settled";
+
+      totalReturn += returnAmount;
+      totalDue += dueAmount;
+
       return {
         ...m,
-        mealCost: Math.round(mealCost * 100) / 100,
+        mealCost,
+        balance,
+        returnAmount,
+        dueAmount,
+        status,
       };
     });
     
@@ -72,7 +90,9 @@ export async function GET(request) {
       month,
       totalCost,
       grandTotalMeals,
-      mealRate: Math.round(mealRate * 100) / 100,
+      mealRate: roundedMealRate,
+      totalReturn: Math.round(totalReturn * 100) / 100,
+      totalDue: Math.round(totalDue * 100) / 100,
       members: memberSummary,
     });
   } catch (error) {

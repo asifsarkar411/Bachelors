@@ -229,39 +229,38 @@ export default function MealsPage() {
         </div>
       ) : (
         <div className="glass-card overflow-hidden animate-fade-in-up border-slate-800">
-          <div className="overflow-x-auto max-h-[75vh]">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th className="!sticky left-0 z-20 bg-slate-900/95 min-w-[65px]">
-                    Date
+          <div className="overflow-x-auto overflow-y-auto max-h-[75vh] relative rounded-xl">
+            <table className="data-table border-collapse">
+              <thead className="sticky top-0 z-30 shadow-md">
+                <tr className="bg-slate-900 border-b border-slate-700">
+                  <th className="sticky left-0 top-0 z-40 bg-slate-900 min-w-[70px] py-2.5 px-3 border-r border-slate-700 text-left">
+                    <span className="font-extrabold text-xs uppercase tracking-wider text-slate-300">Date</span>
                   </th>
                   {members.map((m) => (
                     <th
                       key={m._id}
                       colSpan={2}
-                      className="text-center !text-sky-300 min-w-[100px]"
+                      className="sticky top-0 z-30 bg-slate-900 p-2 border-r border-slate-800 text-center min-w-[110px]"
                     >
-                      {m.name}
-                    </th>
-                  ))}
-                  <th className="text-center !text-amber-300 min-w-[80px]">Day Total</th>
-                </tr>
-                <tr>
-                  <th className="!sticky left-0 z-20 bg-slate-900/95"></th>
-                  {members.map((m) => (
-                    <th key={m._id} colSpan={2} className="!p-0">
-                      <div className="flex">
-                        <span className="flex-1 text-center text-[10px] py-1 text-green-400 border-r border-slate-700/50 bg-slate-900/60">
-                          Day
+                      <div className="font-bold text-sky-300 text-xs sm:text-sm truncate max-w-[130px] mx-auto pb-1 flex items-center justify-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 text-[10px] flex items-center justify-center font-bold shrink-0">
+                          {m.name.charAt(0).toUpperCase()}
                         </span>
-                        <span className="flex-1 text-center text-[10px] py-1 text-purple-400 bg-slate-900/60">
-                          Night
+                        <span className="truncate">{m.name}</span>
+                      </div>
+                      <div className="flex border-t border-slate-700/80 rounded-md overflow-hidden bg-slate-950/80 mt-0.5">
+                        <span className="flex-1 text-center text-[10px] font-bold py-0.5 text-green-400 border-r border-slate-800">
+                          ☀️ Day
+                        </span>
+                        <span className="flex-1 text-center text-[10px] font-bold py-0.5 text-purple-400">
+                          🌙 Night
                         </span>
                       </div>
                     </th>
                   ))}
-                  <th></th>
+                  <th className="sticky top-0 z-30 bg-slate-900 text-center min-w-[85px] py-2 px-3 border-slate-700">
+                    <span className="font-bold text-amber-300 text-xs uppercase tracking-wider block">Day Total</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -279,10 +278,10 @@ export default function MealsPage() {
                       className={isToday ? "bg-sky-500/5" : ""}
                     >
                       <td
-                        className={`!sticky left-0 z-10 whitespace-nowrap ${
+                        className={`sticky left-0 z-20 whitespace-nowrap py-2 px-3 border-r border-slate-800/80 ${
                           isToday
-                            ? "bg-slate-900/95 border-l-2 border-sky-400"
-                            : "bg-slate-900/90"
+                            ? "bg-slate-900 border-l-2 border-sky-400 font-bold"
+                            : "bg-slate-900/95"
                         } backdrop-blur-sm`}
                       >
                         <span className="font-semibold text-white text-xs sm:text-sm">
@@ -293,7 +292,7 @@ export default function MealsPage() {
                         </span>
                       </td>
                       {members.map((m) => (
-                        <td key={`${date}_${m._id}`} colSpan={2} className="!p-1">
+                        <td key={`${date}_${m._id}`} colSpan={2} className="!p-1 border-r border-slate-800/40">
                           <div className="flex gap-1 justify-center">
                             <input
                               type="number"
@@ -353,20 +352,20 @@ export default function MealsPage() {
                 })}
 
                 {/* Total Row */}
-                <tr className="bg-sky-500/15 font-bold border-t-2 border-sky-500/30">
-                  <td className="!sticky left-0 z-10 bg-sky-950/90 backdrop-blur-sm text-sky-300 font-extrabold text-xs sm:text-sm">
+                <tr className="bg-sky-950 font-bold border-t-2 border-sky-500/40 sticky bottom-0 z-20 shadow-lg">
+                  <td className="sticky left-0 bottom-0 z-30 bg-sky-950 border-r border-slate-800 text-sky-300 font-extrabold text-xs sm:text-sm py-2.5 px-3">
                     TOTAL
                   </td>
                   {members.map((m) => (
                     <td
                       key={`total_${m._id}`}
                       colSpan={2}
-                      className="text-center text-sky-300 text-sm sm:text-base font-extrabold"
+                      className="text-center text-sky-300 text-sm sm:text-base font-extrabold py-2.5 bg-sky-950 border-r border-slate-800/60"
                     >
                       {getMemberTotal(m._id)}
                     </td>
                   ))}
-                  <td className="text-center text-amber-300 text-sm sm:text-base font-extrabold">
+                  <td className="text-center text-amber-300 text-sm sm:text-base font-extrabold py-2.5 bg-sky-950">
                     {getGrandTotal()}
                   </td>
                 </tr>

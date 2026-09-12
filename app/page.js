@@ -268,38 +268,50 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Selected Month Meal Breakdown */}
+      {/* Selected Month Meal Breakdown & Settlement Highlights */}
       {summary && summary.members && summary.members.length > 0 && (
         <div className="glass-card p-5 mb-8 animate-fade-in-up border-slate-800">
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60">
             <h2 className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
-              <span>📊</span> {getMonthName(selectedMonth)} Meal Overview
+              <span>📊</span> {getMonthName(selectedMonth)} Overview &amp; Settlement
             </h2>
             <Link
               href="/summary"
-              className="text-xs text-sky-400 hover:underline flex items-center gap-1"
+              className="text-xs text-sky-400 hover:underline flex items-center gap-1 font-semibold"
             >
-              Full Breakdown →
+              View Full Return &amp; Due Records →
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
             <div className="bg-base-100/50 rounded-xl p-3 text-center border border-slate-800">
-              <p className="text-[11px] text-slate-400 mb-1">Total Bajar Cost</p>
-              <p className="text-lg font-bold text-pink-400">
+              <p className="text-[11px] text-slate-400 mb-1">Total Bajar</p>
+              <p className="text-base sm:text-lg font-bold text-pink-400">
                 {formatCurrency(summary.totalCost)}
               </p>
             </div>
             <div className="bg-base-100/50 rounded-xl p-3 text-center border border-slate-800">
               <p className="text-[11px] text-slate-400 mb-1">Total Meals</p>
-              <p className="text-lg font-bold text-purple-400">
-                {summary.grandTotalMeals} meals
+              <p className="text-base sm:text-lg font-bold text-purple-400">
+                {summary.grandTotalMeals}
               </p>
             </div>
             <div className="bg-base-100/50 rounded-xl p-3 text-center border border-slate-800">
               <p className="text-[11px] text-slate-400 mb-1">Meal Rate</p>
-              <p className="text-lg font-bold text-sky-400">
-                {formatCurrency(summary.mealRate)} / meal
+              <p className="text-base sm:text-lg font-bold text-sky-400">
+                {formatCurrency(summary.mealRate)}
+              </p>
+            </div>
+            <div className="bg-green-500/10 rounded-xl p-3 text-center border border-green-500/30">
+              <p className="text-[11px] text-green-300 font-semibold mb-1">🟢 Total Return</p>
+              <p className="text-base sm:text-lg font-bold text-green-400">
+                +{formatCurrency(summary.totalReturn || 0)}
+              </p>
+            </div>
+            <div className="bg-rose-500/10 rounded-xl p-3 text-center border border-rose-500/30 col-span-2 sm:col-span-1">
+              <p className="text-[11px] text-rose-300 font-semibold mb-1">🔴 Total Due</p>
+              <p className="text-base sm:text-lg font-bold text-rose-400">
+                -{formatCurrency(summary.totalDue || 0)}
               </p>
             </div>
           </div>
